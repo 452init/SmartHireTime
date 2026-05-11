@@ -1,0 +1,20 @@
+{
+  "name": "smart-hire-time",
+  "version": "1.0.0",
+  "description": "A simple Python and TypeScript interview question generator.",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "start": ".venv/bin/python backend/app.py",
+    "check": "tsc --noEmit && .venv/bin/python -m py_compile backend/app.py backend/config.py backend/ai_api.py backend/database.py backend/question_builder.py"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.7"
+  },
+  "engines": {
+    "node": ">=18",
+    "python": ">=3.10"
+  }
+}

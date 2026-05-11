@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartHireTime</title>
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="intro">
+        <p class="eyebrow">AI interview assistant</p>
+        <h1>Generate sharper interview questions for any role.</h1>
+        <p class="summary">
+          Enter a job title and get three focused questions designed to reveal
+          real experience, judgment, and communication style.
+        </p>
+      </section>
+
+      <section class="tool-panel" aria-labelledby="form-title">
+        <div class="panel-header">
+          <h2 id="form-title">Question generator</h2>
+          <span>3 questions</span>
+        </div>
+
+        <form id="question-form" class="form">
+          <label for="job-title">Job title</label>
+          <div class="input-row">
+            <input
+              id="job-title"
+              name="jobTitle"
+              type="text"
+              value="Customer Success Manager"
+              autocomplete="off"
+              required
+            />
+            <button type="submit">Generate</button>
+          </div>
+        </form>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+        <ol id="questions" class="questions"></ol>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
