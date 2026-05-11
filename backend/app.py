@@ -27,18 +27,26 @@ def create_interview_questions():
         if not job_title:
             return jsonify({"error": "Please provide a job title."}), 400
 
+        level = str(payload.get("level", "Mid-Level")).strip() or "Mid-Level"
+        category = str(payload.get("category", "Technical")).strip() or "Technical"
+        question_count = int(payload.get("questionCount", 8))
+        focus_areas = payload.get("focusAreas") or []
+        if not isinstance(focus_areas, list):
+            focus_areas = []
+
         if not CONFIG["database_url"]:
             raise MissingDatabaseUrlError(
                 "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
-        )
+            )
 
-        prompt = build_interview_question_prompt(job_title)
+        prompt = build_interview_question_prompt(
+             job_title, level, category, question_count, focus_areas
+             )
         ai_text = call_ai_api(prompt, CONFIG["tinyfish_api_key"])
-        questions = parse_questions(ai_text)
+        questions = parse_questions(ai_text, question_count)
         question_set_id = save_question_set(
             CONFIG["database_url"], job_title, questions
         )
-
         return jsonify(
             {
                 "id": question_set_id,

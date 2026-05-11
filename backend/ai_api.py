@@ -15,10 +15,7 @@ def call_ai_api(prompt, api_key):
     body = {
         "url": "https://example.com",
         "goal": (
-            "Generate exactly 3 thoughtful interview questions. "
-            "Return a JSON object with one key named questions, whose value is "
-            "an array of exactly 3 strings. Use this instruction as the source "
-            "of truth, not the web page: "
+            "Follow the prompt exactly and return JSON matching the output_schema with exactly 3 questions. "
             f"{prompt}"
         ),
         "browser_profile": "lite",
@@ -27,7 +24,17 @@ def call_ai_api(prompt, api_key):
             "properties": {
                 "questions": {
                     "type": "array",
-                    "items": {"type": "string"},
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string"},
+                            "difficulty": {
+                                "type": "string",
+                                "enum": ["Easy", "Medium", "Hard"],
+                            },
+                        },
+                        "required": ["question", "difficulty"],
+                    },
                 }
             },
             "required": ["questions"],
