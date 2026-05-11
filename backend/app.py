@@ -30,10 +30,10 @@ def create_interview_questions():
         if not CONFIG["database_url"]:
             raise MissingDatabaseUrlError(
                 "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
-            )
+        )
 
         prompt = build_interview_question_prompt(job_title)
-        ai_text = call_ai_api(prompt, CONFIG["openai_api_key"])
+        ai_text = call_ai_api(prompt, CONFIG["tinyfish_api_key"])
         questions = parse_questions(ai_text)
         question_set_id = save_question_set(
             CONFIG["database_url"], job_title, questions

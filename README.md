@@ -9,7 +9,7 @@ The backend uses **Flask**. The database is **PostgreSQL**. The frontend is **Ty
 1. The user enters a job title.
 2. The TypeScript frontend sends the title to the Flask API.
 3. Flask builds a role-specific AI prompt.
-4. Flask calls the OpenAI API.
+4. Flask calls the TinyFish Agent API.
 5. Flask saves the generated question set in PostgreSQL.
 6. The frontend displays the three interview questions.
 
@@ -19,7 +19,7 @@ The backend uses **Flask**. The database is **PostgreSQL**. The frontend is **Ty
 SmartHireTime/
 ├── backend/
 │   ├── app.py              # Flask entry point and HTTP routes
-│   ├── ai_api.py           # AI API request
+│   ├── ai_api.py           # TinyFish API request
 │   ├── config.py           # Environment loading
 │   ├── database.py         # PostgreSQL setup and inserts
 │   └── question_builder.py # Prompt creation and response parsing
@@ -46,7 +46,7 @@ This is the backend entry point. It creates the Flask app, exposes the API route
 
 Loads `.env` values:
 
-- `OPENAI_API_KEY`
+- `TINYFISH_API_KEY`
 - `DATABASE_URL`
 - `PORT`
 
@@ -60,7 +60,7 @@ Builds the AI prompt and parses the AI JSON response into a clean list of questi
 
 `backend/ai_api.py`
 
-Calls the OpenAI API.
+Calls the TinyFish Agent API using the synchronous `/v1/automation/run` endpoint. TinyFish receives a `goal`, a `url`, an optional `output_schema`, and the API key in the `X-API-Key` header.
 
 `frontend/src/main.ts`
 
@@ -114,7 +114,7 @@ cp .env.example .env
 Update `.env`:
 
 ```text
-OPENAI_API_KEY=your_openai_api_key_here
+TINYFISH_API_KEY=your_tinyfish_api_key_here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smart_hire_time
 PORT=3000
 ```

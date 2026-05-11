@@ -9,30 +9,45 @@ class MissingApiKeyError(Exception):
 def call_ai_api(prompt, api_key):
     if not api_key:
         raise MissingApiKeyError(
-            "Missing OPENAI_API_KEY. Add it to your .env file and restart the server."
+            "Missing TINYFISH_API_KEY. Add it to your .env file and restart the server."
         )
 
     body = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are an expert hiring manager. Return only valid JSON "
-                    "with a questions array."
-                ),
+        "url": "https://example.com",
+        "goal": (
+            "Generate exactly 3 thoughtful interview questions. "
+            "Return a JSON object with one key named questions, whose value is "
+            "an array of exactly 3 strings. Use this instruction as the source "
+            "of truth, not the web page: "
+            f"{prompt}"
+        ),
+        "browser_profile": "lite",
+        "output_schema": {
+            "type": "object",
+            "properties": {
+                "questions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                }
             },
-            {"role": "user", "content": prompt},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.7,
+            "required": ["questions"],
+        },
     }
 
+    result = run_tinyfish_automation(body, api_key)
+
+    if result.get("status") != "COMPLETED":
+        raise RuntimeError(f"TinyFish run failed: {json.dumps(result.get('error'))}")
+
+    return json.dumps(result.get("result") or {})
+
+
+def run_tinyfish_automation(body, api_key):
     api_request = request.Request(
-        "https://api.openai.com/v1/chat/completions",
+        "https://agent.tinyfish.ai/v1/automation/run",
         data=json.dumps(body).encode("utf-8"),
         headers={
-            "Authorization": f"Bearer {api_key}",
+            "X-API-Key": api_key,
             "Content-Type": "application/json",
         },
         method="POST",
@@ -40,9 +55,13 @@ def call_ai_api(prompt, api_key):
 
     try:
         with request.urlopen(api_request, timeout=30) as response:
-            result = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         detail = exc.read().decode("utf-8")
-        raise RuntimeError(f"AI API request failed: {detail}") from exc
 
-    return result["choices"][0]["message"]["content"]
+        if exc.code == 403 and "output_schema" in detail:
+            fallback_body = dict(body)
+            fallback_body.pop("output_schema", None)
+            return run_tinyfish_automation(fallback_body, api_key)
+
+        raise RuntimeError(f"AI API request failed: {detail}") from exc

@@ -6,7 +6,7 @@ def get_config(env_path):
 
     return {
         "database_url": os.getenv("DATABASE_URL", ""),
-        "openai_api_key": os.getenv("OPENAI_API_KEY", ""),
+        "tinyfish_api_key": os.getenv("TINYFISH_API_KEY", ""),
         "port": int(os.getenv("PORT", "3000")),
     }
 
