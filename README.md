@@ -1,3 +1,5 @@
+[app_logo](https://github.com/452init/SmartHireTime/blob/main/public/assets/icon.png)
+
 # SmartHireTime
 
 SmartHireTime is a simple web app that accepts a job title and returns three thoughtful AI-generated interview questions for that role. The primary example in the input is **Customer Success Manager**.
