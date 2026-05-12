@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     name: Validate before deploy
@@ -41,6 +44,7 @@ jobs:
     name: Deploy backend on Render
     runs-on: ubuntu-latest
     needs: validate
+    permissions: {}
     steps:
       - name: Trigger Render deploy hook
         env:
@@ -56,6 +60,7 @@ jobs:
     name: Deploy frontend on Vercel
     runs-on: ubuntu-latest
     needs: validate
+    permissions: {}
     steps:
       - name: Trigger Vercel deploy hook
         env:

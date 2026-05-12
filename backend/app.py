@@ -9,12 +9,18 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG = get_config(ROOT_DIR / ".env")
+# Guardrails to limit prompt size, response latency, and API usage per request.
+MIN_QUESTION_COUNT = 1
+MAX_QUESTION_COUNT = 12
 
 app = Flask(__name__)
-CORS(
-    app,
-    resources={r"/api/*": {"origins": CONFIG["frontend_origins"] or "*"}},
-)
+if CONFIG["frontend_origins"]:
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": CONFIG["frontend_origins"]}},
+    )
+else:
+    print("FRONTEND_ORIGIN is not set. Cross-origin browser requests are disabled.")
 
 
 @app.get("/api/health")
@@ -38,8 +44,18 @@ def create_interview_questions():
         except (TypeError, ValueError):
             return jsonify({"error": "questionCount must be a valid number."}), 400
 
-        if question_count < 1 or question_count > 12:
-            return jsonify({"error": "questionCount must be between 1 and 12."}), 400
+        if question_count < MIN_QUESTION_COUNT or question_count > MAX_QUESTION_COUNT:
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "questionCount must be between "
+                            f"{MIN_QUESTION_COUNT} and {MAX_QUESTION_COUNT}."
+                        )
+                    }
+                ),
+                400,
+            )
 
         focus_areas = payload.get("focusAreas") or []
         if not isinstance(focus_areas, list):
