@@ -6,8 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
-    "start": ".venv/bin/python backend/app.py",
-    "check": "tsc --noEmit && .venv/bin/python -m py_compile backend/app.py backend/config.py backend/ai_api.py backend/database.py backend/question_builder.py"
+    "start": "PYTHON_BIN=$( [ -x .venv/bin/python ] && echo .venv/bin/python || echo python ) && $PYTHON_BIN backend/app.py",
+    "check": "tsc --noEmit && PYTHON_BIN=$( [ -x .venv/bin/python ] && echo .venv/bin/python || echo python ) && $PYTHON_BIN -m py_compile backend/app.py backend/config.py backend/ai_api.py backend/database.py backend/question_builder.py"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
