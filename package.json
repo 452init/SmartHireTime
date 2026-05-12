@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1",
-    "start": ".venv/bin/python backend/app.py",
+    "start": "python backend/app.py",
     "check": "tsc --noEmit && python -m py_compile backend/app.py backend/config.py backend/ai_api.py backend/database.py backend/question_builder.py"
   },
   "devDependencies": {
