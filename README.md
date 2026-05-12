@@ -1,4 +1,4 @@
-[app_logo](https://github.com/452init/SmartHireTime/blob/main/public/assets/icon.png)
+[](https://github.com/452init/SmartHireTime/blob/main/public/assets/icon.png)
 
 # SmartHireTime
 
