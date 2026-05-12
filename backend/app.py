@@ -1,16 +1,26 @@
-from pathlib import Path
-
 from ai_api import MissingApiKeyError, call_ai_api
 from config import get_config
 from database import MissingDatabaseUrlError, initialize_database, save_question_set
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from question_builder import build_interview_question_prompt, parse_questions
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-DIST_DIR = ROOT_DIR / "frontend" / "dist"
-CONFIG = get_config(ROOT_DIR / ".env")
+from pathlib import Path
 
-app = Flask(__name__, static_folder=str(DIST_DIR), static_url_path="")
+ROOT_DIR = Path(__file__).resolve().parent.parent
+CONFIG = get_config(ROOT_DIR / ".env")
+# Guardrails to limit prompt size, response latency, and API usage per request.
+MIN_QUESTION_COUNT = 1
+MAX_QUESTION_COUNT = 12
+
+app = Flask(__name__)
+if CONFIG["frontend_origins"]:
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": CONFIG["frontend_origins"]}},
+    )
+else:
+    print("FRONTEND_ORIGIN is not set. Cross-origin browser requests are disabled.")
 
 
 @app.get("/api/health")
@@ -29,7 +39,24 @@ def create_interview_questions():
 
         level = str(payload.get("level", "Mid-Level")).strip() or "Mid-Level"
         category = str(payload.get("category", "Technical")).strip() or "Technical"
-        question_count = int(payload.get("questionCount", 8))
+        try:
+            question_count = int(payload.get("questionCount", 8))
+        except (TypeError, ValueError):
+            return jsonify({"error": "questionCount must be a valid number."}), 400
+
+        if question_count < MIN_QUESTION_COUNT or question_count > MAX_QUESTION_COUNT:
+            return (
+                jsonify(
+                    {
+                        "error": (
+                            "questionCount must be between "
+                            f"{MIN_QUESTION_COUNT} and {MAX_QUESTION_COUNT}."
+                        )
+                    }
+                ),
+                400,
+            )
+
         focus_areas = payload.get("focusAreas") or []
         if not isinstance(focus_areas, list):
             focus_areas = []
@@ -42,7 +69,7 @@ def create_interview_questions():
         prompt = build_interview_question_prompt(
              job_title, level, category, question_count, focus_areas
              )
-        ai_text = call_ai_api(prompt, CONFIG["tinyfish_api_key"])
+        ai_text = call_ai_api(prompt, CONFIG["tinyfish_api_key"], question_count)
         questions = parse_questions(ai_text, question_count)
         question_set_id = save_question_set(
             CONFIG["database_url"], job_title, questions
@@ -62,50 +89,23 @@ def create_interview_questions():
 
 
 @app.get("/")
-def serve_index():
-    return send_frontend_file("index.html")
+def root():
+    return jsonify({"service": "SmartHireTime API", "status": "ok"})
 
 
-@app.get("/<path:file_path>")
-def serve_frontend(file_path):
-    if file_path.startswith("api/"):
-        return jsonify({"error": "Not found."}), 404
-
-    target = DIST_DIR / file_path
-
-    if target.exists() and target.is_file():
-        return send_from_directory(DIST_DIR, file_path)
-
-    return send_frontend_file("index.html")
-
-
-def send_frontend_file(file_name):
-    target = DIST_DIR / file_name
-
-    if not target.exists():
-        return (
-            jsonify(
-                {
-                    "error": (
-                        "Frontend build not found. Run 'npm run build' before "
-                        "starting the Flask server."
-                    )
-                }
-            ),
-            500,
-        )
-
-    return send_from_directory(DIST_DIR, file_name)
-
-
-def main():
+def initialize_app():
     if CONFIG["database_url"]:
         initialize_database(CONFIG["database_url"])
     else:
-        print("DATABASE_URL is not set. PostgreSQL will be required before saving questions.")
+        print("DATABASE_URL is not set. PostgreSQL is required for production.")
 
-    app.run(host="127.0.0.1", port=CONFIG["port"])
+
+def main():
+    initialize_app()
+    app.run(host="0.0.0.0", port=CONFIG["port"])
 
 
 if __name__ == "__main__":
     main()
+else:
+    initialize_app()

@@ -6,7 +6,7 @@ class MissingApiKeyError(Exception):
     pass
 
 
-def call_ai_api(prompt, api_key):
+def call_ai_api(prompt, api_key, question_count=8):
     if not api_key:
         raise MissingApiKeyError(
             "Missing TINYFISH_API_KEY. Add it to your .env file and restart the server."
@@ -15,7 +15,8 @@ def call_ai_api(prompt, api_key):
     body = {
         "url": "https://example.com",
         "goal": (
-            "Follow the prompt exactly and return JSON matching the output_schema with exactly 3 questions. "
+            "Follow the prompt exactly and return JSON matching the output_schema "
+            f"with exactly {question_count} questions. "
             f"{prompt}"
         ),
         "browser_profile": "lite",

@@ -31,6 +31,10 @@ SmartHireTime/
 │       ├── main.ts         # TypeScript form and API logic
 │       └── styles.css      # Clean professional UI
 ├── .env.example            # Example environment variables
+├── render.yaml             # Render production service definition
+├── vercel.json             # Vercel production build and SPA routing config
+├── .github/workflows/
+│   └── deploy-production.yml # Validate + trigger production deploy hooks on push
 ├── requirements.txt        # Flask and PostgreSQL Python dependencies
 ├── package.json            # Frontend build scripts
 ├── tsconfig.json           # TypeScript settings
@@ -118,6 +122,8 @@ Update `.env`:
 ```text
 TINYFISH_API_KEY=your_tinyfish_api_key_here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smart_hire_time
+FRONTEND_ORIGIN=http://localhost:5173
+VITE_API_BASE_URL=http://127.0.0.1:3000
 PORT=3000
 ```
 
@@ -160,6 +166,73 @@ npm run dev
 ```
 
 The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Flask running in another terminal.
+
+## Production Architecture
+
+- Frontend: Vercel
+- Backend API: Render
+- Database: Supabase (PostgreSQL)
+- Uptime monitor: UptimeRobot hitting backend health endpoint
+- CI/CD: GitHub Actions workflow in `.github/workflows/deploy-production.yml`
+
+## Production Hosting (Step-by-Step)
+
+### 1) Create Supabase database
+
+1. Create a Supabase project.
+2. In Supabase, copy the PostgreSQL connection string.
+3. Use that value as `DATABASE_URL` in Render.
+4. Ensure the password is URL-safe in the final `DATABASE_URL` (URL-encoded when needed).
+
+### 2) Deploy backend to Render
+
+1. In Render, create a new **Blueprint** service from this repository (uses `render.yaml`) or create a Web Service manually with:
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `gunicorn --chdir backend --bind 0.0.0.0:$PORT app:app`
+2. Set backend environment variables in Render:
+   - `TINYFISH_API_KEY`
+   - `DATABASE_URL` (Supabase PostgreSQL URL)
+   - `FRONTEND_ORIGIN` (your Vercel domain, for example `https://your-app.vercel.app`)
+3. Confirm health check works:
+   - `GET https://<your-render-service>/api/health` returns `{"status":"ok"}`
+
+### 3) Deploy frontend to Vercel
+
+1. Import this repository into Vercel.
+2. Framework preset should be Vite (also configured in `vercel.json`).
+3. Set frontend environment variable in Vercel:
+   - `VITE_API_BASE_URL=https://<your-render-service>`
+4. Deploy, then verify frontend can call backend successfully.
+
+### 4) Enable automatic production deploy on every push
+
+This repo includes `.github/workflows/deploy-production.yml`, which:
+
+1. Runs checks/build on pushes to `main`.
+2. Triggers Render deploy hook.
+3. Triggers Vercel deploy hook.
+
+Add these GitHub repository secrets:
+
+- `RENDER_DEPLOY_HOOK_URL`
+- `VERCEL_DEPLOY_HOOK_URL`
+
+How to get the hook URLs:
+
+- Render: Service Settings → Deploy Hook.
+- Vercel: Project Settings → Git / Deploy Hooks.
+
+After adding secrets, every push to `main` will auto-validate and auto-deploy both frontend and backend.
+
+### 5) Keep backend awake with UptimeRobot
+
+1. Create a monitor in UptimeRobot:
+   - Type: HTTP(s)
+   - URL: `https://<your-render-service>/api/health`
+   - Interval: 5 minutes
+2. Save monitor and confirm it reports `up`.
+
+This reduces cold-start downtime on low-traffic plans by periodically hitting the backend health endpoint.
 
 ## API Example
 
