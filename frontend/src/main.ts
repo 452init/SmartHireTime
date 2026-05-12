@@ -21,6 +21,7 @@ type FocusProfile = {
   areas: string[];
 };
 
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 const levels = ["Junior", "Mid-Level", "Senior", "Executive"];
 const defaultFocusAreas = [
   "Role-Specific Judgment",
@@ -433,7 +434,7 @@ form.addEventListener("submit", async (event) => {
   hideResults();
 
   try {
-    const response = await fetch("/api/interview-questions", {
+    const response = await fetch(getApiUrl("/api/interview-questions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -589,4 +590,8 @@ function getElement<T extends HTMLElement>(selector: string): T {
   }
 
   return element;
+}
+
+function getApiUrl(path: string) {
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
 }

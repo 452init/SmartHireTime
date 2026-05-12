@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: smart-hire-time-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir backend --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.2
+      - key: DATABASE_URL
+        sync: false
+      - key: TINYFISH_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
