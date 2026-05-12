@@ -17,3 +17,4 @@ services:
       - key: FRONTEND_ORIGIN
         sync: false
     env: RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+    env: VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
