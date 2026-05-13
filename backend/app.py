@@ -20,7 +20,7 @@ DEFAULT_FRONTEND_ORIGINS = [
 ]
 
 app = Flask(__name__)
-configured_origins = CONFIG["frontend_origins"]
+configured_origins = list(CONFIG["frontend_origins"] or [])
 allowed_origins = configured_origins.copy()
 
 for origin in DEFAULT_FRONTEND_ORIGINS:
