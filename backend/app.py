@@ -21,15 +21,14 @@ DEFAULT_FRONTEND_ORIGINS = [
 
 app = Flask(__name__)
 configured_origins = list(CONFIG["frontend_origins"] or [])
-allowed_origins = configured_origins.copy()
 
 for origin in DEFAULT_FRONTEND_ORIGINS:
-    if origin not in allowed_origins:
-        allowed_origins.append(origin)
+    if origin not in configured_origins:
+        configured_origins.append(origin)
 
 CORS(
     app,
-    resources={r"/api/*": {"origins": allowed_origins}},
+    resources={r"/api/*": {"origins": configured_origins}},
 )
 
 if not configured_origins:
