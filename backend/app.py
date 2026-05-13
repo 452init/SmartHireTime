@@ -13,15 +13,27 @@ CONFIG = get_config(ROOT_DIR / ".env")
 # Guardrails to limit prompt size, response latency, and API usage per request.
 MIN_QUESTION_COUNT = 1
 MAX_QUESTION_COUNT = 12
+DEFAULT_FRONTEND_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://smart-hire-time.vercel.app",
+]
 
 app = Flask(__name__)
-if CONFIG["frontend_origins"]:
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": CONFIG["frontend_origins"]}},
-    )
-else:
-    print("FRONTEND_ORIGIN is not set. Cross-origin browser requests are disabled.")
+configured_origins = CONFIG["frontend_origins"]
+allowed_origins = configured_origins.copy()
+
+for origin in DEFAULT_FRONTEND_ORIGINS:
+    if origin not in allowed_origins:
+        allowed_origins.append(origin)
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": allowed_origins}},
+)
+
+if not configured_origins:
+    print("FRONTEND_ORIGIN is not set. Using default frontend origins for CORS.")
 
 
 @app.get("/api/health")
