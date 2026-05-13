@@ -26,7 +26,15 @@ def normalize_frontend_origins(value):
     elif not isinstance(value, list):
         value = []
 
-    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+    cleaned_origins = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        stripped_item = item.strip()
+        if stripped_item:
+            cleaned_origins.append(stripped_item)
+
+    return cleaned_origins
 
 
 app = Flask(__name__)
