@@ -122,7 +122,7 @@ Update `.env`:
 ```text
 TINYFISH_API_KEY=your_tinyfish_api_key_here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smart_hire_time
-FRONTEND_ORIGIN=http://localhost:5173
+FRONTEND_ORIGIN=http://localhost:5173,https://smart-hire-time.vercel.app
 VITE_API_BASE_URL=http://127.0.0.1:3000
 PORT=3000
 ```
@@ -192,7 +192,7 @@ The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Fla
 2. Set backend environment variables in Render:
    - `TINYFISH_API_KEY`
    - `DATABASE_URL` (Supabase PostgreSQL URL)
-   - `FRONTEND_ORIGIN` (your Vercel domain, for example `https://your-app.vercel.app`)
+   - `FRONTEND_ORIGIN` (comma-separated list of allowed frontend origins, for example `https://your-app.vercel.app`)
 3. Confirm health check works:
    - `GET https://<your-render-service>/api/health` returns `{"status":"ok"}`
 

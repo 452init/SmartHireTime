@@ -13,15 +13,47 @@ CONFIG = get_config(ROOT_DIR / ".env")
 # Guardrails to limit prompt size, response latency, and API usage per request.
 MIN_QUESTION_COUNT = 1
 MAX_QUESTION_COUNT = 12
+DEFAULT_FRONTEND_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://smart-hire-time.vercel.app",
+]
+
+
+def normalize_frontend_origins(value):
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    elif not isinstance(value, list):
+        return []
+
+    cleaned_origins = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        stripped_item = item.strip()
+        if stripped_item:
+            cleaned_origins.append(stripped_item)
+
+    return cleaned_origins
+
 
 app = Flask(__name__)
-if CONFIG["frontend_origins"]:
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": CONFIG["frontend_origins"]}},
-    )
-else:
-    print("FRONTEND_ORIGIN is not set. Cross-origin browser requests are disabled.")
+raw_frontend_origins = CONFIG.get("frontend_origins", [])
+has_configured_origins = bool(raw_frontend_origins)
+configured_origins = list(dict.fromkeys(normalize_frontend_origins(raw_frontend_origins)))
+configured_origin_set = set(configured_origins)
+for origin in DEFAULT_FRONTEND_ORIGINS:
+    if origin not in configured_origin_set:
+        configured_origins.append(origin)
+        configured_origin_set.add(origin)
+
+CORS(
+    app,
+    resources={r"/api/*": {"origins": configured_origins}},
+)
+
+if not has_configured_origins:
+    print("FRONTEND_ORIGIN is not set. Using default frontend origins for CORS.")
 
 
 @app.get("/api/health")
