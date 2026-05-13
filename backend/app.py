@@ -20,6 +20,7 @@ DEFAULT_FRONTEND_ORIGINS = [
 ]
 
 app = Flask(__name__)
+has_configured_origins = bool(CONFIG["frontend_origins"])
 configured_origins = list(CONFIG["frontend_origins"] or [])
 
 for origin in DEFAULT_FRONTEND_ORIGINS:
@@ -31,7 +32,7 @@ CORS(
     resources={r"/api/*": {"origins": configured_origins}},
 )
 
-if not configured_origins:
+if not has_configured_origins:
     print("FRONTEND_ORIGIN is not set. Using default frontend origins for CORS.")
 
 
