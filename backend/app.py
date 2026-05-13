@@ -19,13 +19,23 @@ DEFAULT_FRONTEND_ORIGINS = [
     "https://smart-hire-time.vercel.app",
 ]
 
-app = Flask(__name__)
-has_configured_origins = bool(CONFIG["frontend_origins"])
-configured_origins = list(CONFIG["frontend_origins"] or [])
 
-for origin in DEFAULT_FRONTEND_ORIGINS:
-    if origin not in configured_origins:
-        configured_origins.append(origin)
+def normalize_frontend_origins(value):
+    if isinstance(value, str):
+        value = [item.strip() for item in value.split(",") if item.strip()]
+    elif not isinstance(value, list):
+        value = []
+
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+
+app = Flask(__name__)
+raw_frontend_origins = CONFIG.get("frontend_origins", [])
+has_configured_origins = bool(raw_frontend_origins)
+configured_origins = normalize_frontend_origins(raw_frontend_origins)
+configured_origins.extend(
+    [origin for origin in DEFAULT_FRONTEND_ORIGINS if origin not in configured_origins]
+)
 
 CORS(
     app,
