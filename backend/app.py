@@ -6,6 +6,7 @@ from flask_cors import CORS
 from question_builder import build_interview_question_prompt, parse_questions
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG = get_config(ROOT_DIR / ".env")
@@ -95,9 +96,25 @@ def root():
 
 def initialize_app():
     if CONFIG["database_url"]:
+        log_database_host(CONFIG["database_url"])
         initialize_database(CONFIG["database_url"])
     else:
         print("DATABASE_URL is not set. PostgreSQL is required for production.")
+
+
+def log_database_host(database_url):
+    parsed = urlparse(database_url)
+    host = parsed.hostname
+    port = parsed.port
+
+    if not host:
+        print("Database host could not be parsed.")
+        return
+
+    if port:
+        print(f"Database host: {host}:{port}")
+    else:
+        print(f"Database host: {host}")
 
 
 def main():
