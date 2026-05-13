@@ -40,11 +40,12 @@ def normalize_frontend_origins(value):
 app = Flask(__name__)
 raw_frontend_origins = CONFIG.get("frontend_origins", [])
 has_configured_origins = bool(raw_frontend_origins)
-configured_origins = normalize_frontend_origins(raw_frontend_origins)
+configured_origins = list(dict.fromkeys(normalize_frontend_origins(raw_frontend_origins)))
 configured_origin_set = set(configured_origins)
-configured_origins.extend(
-    [origin for origin in DEFAULT_FRONTEND_ORIGINS if origin not in configured_origin_set]
-)
+for origin in DEFAULT_FRONTEND_ORIGINS:
+    if origin not in configured_origin_set:
+        configured_origins.append(origin)
+        configured_origin_set.add(origin)
 
 CORS(
     app,
