@@ -4,10 +4,8 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from urllib import error, request
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
-
-_PASSWORD_CONTEXT = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
 
 
@@ -18,11 +16,14 @@ class AuthTokenError(Exception):
 
 
 def hash_password(password):
-    return _PASSWORD_CONTEXT.hash(password)
+    password_bytes = _to_bytes(password)
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password, password_hash):
-    return _PASSWORD_CONTEXT.verify(password, password_hash)
+    if not password_hash:
+        return False
+    return bcrypt.checkpw(_to_bytes(password), _to_bytes(password_hash))
 
 
 def normalize_email(email):
@@ -40,6 +41,12 @@ def mask_email(email):
         masked = f"{name[:1]}***{name[-1:]}"
 
     return f"{masked}@{domain}"
+
+
+def _to_bytes(value):
+    if isinstance(value, bytes):
+        return value
+    return str(value).encode("utf-8")
 
 
 def generate_code():
