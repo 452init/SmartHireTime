@@ -55,7 +55,7 @@
             </div>
 
             <form id="auth-form" class="auth-form" autocomplete="on">
-              <div class="auth-grid">
+              <div id="auth-name-fields" class="auth-grid">
                 <div class="field-group">
                   <label for="first-name">First name</label>
                   <input
@@ -64,7 +64,6 @@
                     name="firstName"
                     type="text"
                     autocomplete="given-name"
-                    required
                   />
                 </div>
                 <div class="field-group">
@@ -75,7 +74,6 @@
                     name="lastName"
                     type="text"
                     autocomplete="family-name"
-                    required
                   />
                 </div>
               </div>
@@ -104,6 +102,10 @@
                   required
                 />
               </div>
+
+              <button id="auth-mode-toggle" class="auth-toggle" type="button">
+                New here? Create account
+              </button>
 
               <div class="action-row">
                 <button id="auth-submit" class="gen-btn" type="submit">

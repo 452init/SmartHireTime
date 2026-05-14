@@ -418,6 +418,8 @@ let selectedCategory = focusAreas[0];
 
 let authSession: AuthSession | null = null;
 let pendingEmail = "";
+let isRegistering = false;
+let isAuthLoading = false;
 
 const authTrigger = getElement<HTMLButtonElement>("#auth-trigger");
 const authTriggerLabel = getElement<HTMLSpanElement>("#auth-trigger-label");
@@ -427,12 +429,15 @@ const authPanel = getElement<HTMLElement>("#auth-panel");
 const authSessionPanel = getElement<HTMLElement>("#auth-session");
 const authSessionEmail = getElement<HTMLParagraphElement>("#auth-session-email");
 const authStartPanel = getElement<HTMLElement>("#auth-start");
+const authTitle = getElement<HTMLHeadingElement>("#auth-title");
 const authForm = getElement<HTMLFormElement>("#auth-form");
+const authNameFields = getElement<HTMLElement>("#auth-name-fields");
 const firstNameInput = getElement<HTMLInputElement>("#first-name");
 const lastNameInput = getElement<HTMLInputElement>("#last-name");
 const authEmailInput = getElement<HTMLInputElement>("#auth-email");
 const authPasswordInput = getElement<HTMLInputElement>("#auth-password");
 const authSubmitButton = getElement<HTMLButtonElement>("#auth-submit");
+const authModeToggle = getElement<HTMLButtonElement>("#auth-mode-toggle");
 const authStatus = getElement<HTMLDivElement>("#auth-status");
 const googleButton = getElement<HTMLDivElement>("#google-button");
 
@@ -445,6 +450,7 @@ const codeStatus = getElement<HTMLDivElement>("#code-status");
 const codeResendButton = getElement<HTMLButtonElement>("#code-resend");
 const codeBackButton = getElement<HTMLButtonElement>("#code-back");
 
+const topbar = getElement<HTMLElement>(".topbar");
 const appPanel = getElement<HTMLElement>("#app-panel");
 const form = getElement<HTMLFormElement>("#question-form");
 const input = getElement<HTMLInputElement>("#job-title");
@@ -459,9 +465,14 @@ const categoryOptions = getElement<HTMLDivElement>("#category-options");
 
 refreshOptionGroups();
 updateGenerateButton();
+setAuthMode(false);
 
 authTrigger.addEventListener("click", () => {
   openAuthPanel();
+});
+
+authModeToggle.addEventListener("click", () => {
+  setAuthMode(!isRegistering);
 });
 
 logoutButton.addEventListener("click", () => {
@@ -477,8 +488,11 @@ authForm.addEventListener("submit", async (event) => {
   const email = authEmailInput.value.trim();
   const password = authPasswordInput.value;
 
-  if (!firstName || !lastName || !email || !password) {
-    setAuthStatus("Complete all fields to continue.", "error");
+  if (!email || !password || (isRegistering && (!firstName || !lastName))) {
+    setAuthStatus(
+      isRegistering ? "Complete all fields to continue." : "Enter your email and password.",
+      "error"
+    );
     return;
   }
 
@@ -878,8 +892,9 @@ function applyAuthSession(session: AuthSession) {
   authSession = session;
   pendingEmail = session.user.email;
   authSessionEmail.textContent = `Signed in as ${session.user.email}`;
-  authSessionPanel.hidden = false;
+  authSessionPanel.hidden = true;
   updateAuthTrigger();
+  closeAuthPanel();
 }
 
 function clearAuthSession() {
@@ -902,6 +917,8 @@ function updateAuthTrigger() {
 
 function openAuthPanel(message?: string) {
   authPanel.hidden = false;
+  document.body.classList.add("auth-open");
+  topbar.hidden = true;
   appPanel.hidden = true;
   window.location.hash = "auth-panel";
   authPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -913,6 +930,7 @@ function openAuthPanel(message?: string) {
     return;
   }
 
+  setAuthMode(false);
   authSessionPanel.hidden = true;
   authStartPanel.hidden = false;
   codePanel.hidden = true;
@@ -922,6 +940,8 @@ function openAuthPanel(message?: string) {
 
 function showCodePanel(maskedEmail: string) {
   authPanel.hidden = false;
+  document.body.classList.add("auth-open");
+  topbar.hidden = true;
   appPanel.hidden = true;
   authSessionPanel.hidden = true;
   authStartPanel.hidden = true;
@@ -933,6 +953,8 @@ function showCodePanel(maskedEmail: string) {
 
 function closeAuthPanel() {
   authPanel.hidden = true;
+  document.body.classList.remove("auth-open");
+  topbar.hidden = false;
   appPanel.hidden = false;
   authStartPanel.hidden = false;
   codePanel.hidden = true;
@@ -951,13 +973,38 @@ function setCodeStatus(message: string, type: "idle" | "success" | "error") {
 }
 
 function setAuthLoading(isLoading: boolean) {
+  isAuthLoading = isLoading;
   authSubmitButton.disabled = isLoading;
-  authSubmitButton.textContent = isLoading ? "Continuing..." : "Continue";
+  authSubmitButton.textContent = isLoading ? "Continuing..." : getAuthSubmitText();
 }
 
 function setCodeLoading(isLoading: boolean) {
   codeSubmitButton.disabled = isLoading;
   codeSubmitButton.textContent = isLoading ? "Verifying..." : "Verify";
+}
+
+function setAuthMode(registering: boolean) {
+  isRegistering = registering;
+  authNameFields.hidden = !registering;
+  firstNameInput.required = registering;
+  lastNameInput.required = registering;
+  authTitle.textContent = registering ? "Create your account" : "Sign in to continue";
+  authModeToggle.textContent = registering
+    ? "Already have an account? Sign in"
+    : "New here? Create account";
+
+  if (!isAuthLoading) {
+    authSubmitButton.textContent = getAuthSubmitText();
+  }
+
+  if (!registering) {
+    firstNameInput.value = "";
+    lastNameInput.value = "";
+  }
+}
+
+function getAuthSubmitText() {
+  return isRegistering ? "Create account" : "Sign in";
 }
 
 async function handleLogout() {

@@ -204,8 +204,6 @@ def auth_start():
         email = normalize_email(str(payload.get("email", "")))
         password = str(payload.get("password", ""))
 
-        if not first_name or not last_name:
-            return jsonify({"error": "Please enter your first and last name."}), 400
         if not email or not AUTH_EMAIL_PATTERN.match(email):
             return jsonify({"error": "Please provide a valid email address."}), 400
         if len(password) < 8:
@@ -221,6 +219,8 @@ def auth_start():
             if not verify_password(password, user["password_hash"]):
                 return jsonify({"error": "Invalid email or password."}), 401
         else:
+            if not first_name or not last_name:
+                return jsonify({"error": "Please add your first and last name to create an account."}), 400
             user = create_user(
                 CONFIG["database_url"],
                 first_name,
