@@ -40,6 +40,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 24px;
   border-bottom: 1px solid rgba(212, 168, 67, 0.15);
   padding: 32px 60px;
@@ -64,6 +65,60 @@ input {
   font-size: 1.65rem;
   font-weight: 700;
   letter-spacing: 0;
+}
+
+.topbar-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(212, 168, 67, 0.35);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--cream);
+  padding: 10px 16px;
+  font-size: 0.72rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.auth-trigger:hover {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
+}
+
+.auth-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+}
+
+.auth-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .brand-mark {
@@ -111,6 +166,90 @@ input {
   font-size: 1.13rem;
   font-weight: 300;
   letter-spacing: 0;
+}
+
+.auth-panel {
+  display: grid;
+  gap: 20px;
+  margin: 0 auto 40px;
+}
+
+.auth-card {
+  border: 1px solid rgba(212, 168, 67, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 32px;
+}
+
+.auth-header h2 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.auth-header p {
+  margin: 0 0 20px;
+  color: var(--cream-muted);
+  font-size: 0.98rem;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+  color: var(--cream-muted);
+  font-size: 0.72rem;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(212, 168, 67, 0.2);
+}
+
+.google-button {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.code-email {
+  color: var(--gold);
+}
+
+.code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(212, 168, 67, 0.4);
+  background: transparent;
+  color: var(--gold);
+  padding: 10px 18px;
+  font-size: 0.78rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.ghost-btn:hover {
+  border-color: var(--gold-bright);
+  color: var(--gold-bright);
 }
 
 .generator-panel {
@@ -231,6 +370,14 @@ input {
   color: var(--danger);
   text-align: center;
   font-size: 1rem;
+}
+
+.status[data-type="success"] {
+  color: var(--easy);
+}
+
+.status[data-type="idle"] {
+  color: var(--cream-muted);
 }
 
 .status:empty {
@@ -383,6 +530,20 @@ input {
 
   .generator-panel {
     padding: 30px 20px;
+  }
+
+  .auth-card {
+    padding: 24px 18px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .brand-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .pill {

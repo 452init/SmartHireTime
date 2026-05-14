@@ -16,12 +16,41 @@ type ErrorResponse = {
   error: string;
 };
 
+type AuthUser = {
+  id: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+};
+
+type AuthSession = {
+  token: string;
+  user: AuthUser;
+};
+
+type AuthStartResponse = {
+  status: "code_sent";
+  email: string;
+  maskedEmail: string;
+  expiresInMinutes: number;
+};
+
+type AuthVerifyResponse = {
+  token: string;
+  user: AuthUser;
+  tokenType: "Bearer";
+  expiresInSeconds: number;
+};
+
+type AuthRefreshResponse = AuthVerifyResponse;
+
 type FocusProfile = {
   keywords: string[];
   areas: string[];
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
 const levels = ["Junior", "Mid-Level", "Senior", "Executive"];
 const defaultFocusAreas = [
   "Role-Specific Judgment",
@@ -387,6 +416,36 @@ let selectedLevel = "Mid-Level";
 let focusAreas = getFocusAreas("Customer Success Manager");
 let selectedCategory = focusAreas[0];
 
+let authSession: AuthSession | null = null;
+let pendingEmail = "";
+
+const authTrigger = getElement<HTMLButtonElement>("#auth-trigger");
+const authTriggerLabel = getElement<HTMLSpanElement>("#auth-trigger-label");
+const logoutButton = getElement<HTMLButtonElement>("#logout-button");
+
+const authPanel = getElement<HTMLElement>("#auth-panel");
+const authSessionPanel = getElement<HTMLElement>("#auth-session");
+const authSessionEmail = getElement<HTMLParagraphElement>("#auth-session-email");
+const authStartPanel = getElement<HTMLElement>("#auth-start");
+const authForm = getElement<HTMLFormElement>("#auth-form");
+const firstNameInput = getElement<HTMLInputElement>("#first-name");
+const lastNameInput = getElement<HTMLInputElement>("#last-name");
+const authEmailInput = getElement<HTMLInputElement>("#auth-email");
+const authPasswordInput = getElement<HTMLInputElement>("#auth-password");
+const authSubmitButton = getElement<HTMLButtonElement>("#auth-submit");
+const authStatus = getElement<HTMLDivElement>("#auth-status");
+const googleButton = getElement<HTMLDivElement>("#google-button");
+
+const codePanel = getElement<HTMLElement>("#code-panel");
+const codeForm = getElement<HTMLFormElement>("#code-form");
+const codeInput = getElement<HTMLInputElement>("#auth-code");
+const codeSubmitButton = getElement<HTMLButtonElement>("#code-submit");
+const codeEmail = getElement<HTMLSpanElement>("#code-email");
+const codeStatus = getElement<HTMLDivElement>("#code-status");
+const codeResendButton = getElement<HTMLButtonElement>("#code-resend");
+const codeBackButton = getElement<HTMLButtonElement>("#code-back");
+
+const appPanel = getElement<HTMLElement>("#app-panel");
 const form = getElement<HTMLFormElement>("#question-form");
 const input = getElement<HTMLInputElement>("#job-title");
 const submitButton = getElement<HTMLButtonElement>("#generate-button");
@@ -400,6 +459,155 @@ const categoryOptions = getElement<HTMLDivElement>("#category-options");
 
 refreshOptionGroups();
 updateGenerateButton();
+
+authTrigger.addEventListener("click", () => {
+  openAuthPanel();
+});
+
+logoutButton.addEventListener("click", () => {
+  void handleLogout();
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setAuthStatus("", "idle");
+
+  const firstName = firstNameInput.value.trim();
+  const lastName = lastNameInput.value.trim();
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+
+  if (!firstName || !lastName || !email || !password) {
+    setAuthStatus("Complete all fields to continue.", "error");
+    return;
+  }
+
+  setAuthLoading(true);
+
+  try {
+    const response = await fetch(getApiUrl("/api/auth/start"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        firstName,
+        lastName,
+        email,
+        password
+      })
+    });
+
+    const data = (await response.json()) as AuthStartResponse | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to start sign-in.");
+    }
+
+    pendingEmail = data.email;
+    authPasswordInput.value = "";
+    showCodePanel(data.maskedEmail);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to start sign-in.";
+    setAuthStatus(message, "error");
+  } finally {
+    setAuthLoading(false);
+  }
+});
+
+codeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  setCodeStatus("", "idle");
+
+  const email = pendingEmail.trim();
+  const code = codeInput.value.trim();
+
+  if (!email) {
+    setCodeStatus("Missing email. Please start again.", "error");
+    openAuthPanel();
+    return;
+  }
+
+  if (!/^[0-9]{6}$/.test(code)) {
+    setCodeStatus("Enter the 6-digit code.", "error");
+    return;
+  }
+
+  setCodeLoading(true);
+
+  try {
+    const response = await fetch(getApiUrl("/api/auth/verify"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email,
+        code
+      })
+    });
+
+    const data = (await response.json()) as AuthVerifyResponse | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to verify code.");
+    }
+
+    applyAuthSession({ token: data.token, user: data.user });
+    codeInput.value = "";
+    closeAuthPanel();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to verify code.";
+    setCodeStatus(message, "error");
+  } finally {
+    setCodeLoading(false);
+  }
+});
+
+codeResendButton.addEventListener("click", async () => {
+  if (!pendingEmail) {
+    openAuthPanel();
+    return;
+  }
+
+  setCodeStatus("Sending a new code...", "idle");
+
+  try {
+    const response = await fetch(getApiUrl("/api/auth/request-code"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email: pendingEmail
+      })
+    });
+
+    const data = (await response.json()) as AuthStartResponse | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to resend code.");
+    }
+
+    showCodePanel(data.maskedEmail);
+    setCodeStatus("Code sent. Check your inbox.", "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to resend code.";
+    setCodeStatus(message, "error");
+  }
+});
+
+codeBackButton.addEventListener("click", () => {
+  pendingEmail = "";
+  codeInput.value = "";
+  openAuthPanel();
+});
+
+window.addEventListener("load", () => {
+  initGoogleButton();
+});
+
+void initializeAuth();
 
 input.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
@@ -429,12 +637,19 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  const hasSession = await ensureAuthSession();
+  if (!hasSession) {
+    setStatus("Sign in to generate questions.", "error");
+    openAuthPanel("Sign in to generate questions.");
+    return;
+  }
+
   setLoading(true);
   setStatus("", "idle");
   hideResults();
 
   try {
-    const response = await fetch(getApiUrl("/api/interview-questions"), {
+    const response = await fetchWithAuth(getApiUrl("/api/interview-questions"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -449,6 +664,12 @@ form.addEventListener("submit", async (event) => {
     });
 
     const data = (await response.json()) as QuestionsResponse | ErrorResponse;
+
+    if (response.status === 401) {
+      setStatus("Session expired. Please sign in again.", "error");
+      openAuthPanel("Session expired. Please sign in again.");
+      return;
+    }
 
     if (!response.ok || "error" in data) {
       throw new Error("error" in data ? data.error : "Request failed.");
@@ -594,4 +815,219 @@ function getElement<T extends HTMLElement>(selector: string): T {
 
 function getApiUrl(path: string) {
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
+}
+
+async function initializeAuth() {
+  updateAuthTrigger();
+  const refreshed = await refreshSession();
+  if (!refreshed) {
+    clearAuthSession();
+    closeAuthPanel();
+  }
+}
+
+async function ensureAuthSession() {
+  if (authSession) {
+    return true;
+  }
+
+  return refreshSession();
+}
+
+async function refreshSession() {
+  try {
+    const response = await fetch(getApiUrl("/api/auth/refresh"), {
+      method: "POST",
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = (await response.json()) as AuthRefreshResponse;
+    applyAuthSession({ token: data.token, user: data.user });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
+  const headers = new Headers(init.headers ?? {});
+  if (authSession?.token) {
+    headers.set("Authorization", `Bearer ${authSession.token}`);
+  }
+
+  const response = await fetch(input, { ...init, headers });
+  if (response.status !== 401) {
+    return response;
+  }
+
+  const refreshed = await refreshSession();
+  if (!refreshed || !authSession?.token) {
+    return response;
+  }
+
+  const retryHeaders = new Headers(init.headers ?? {});
+  retryHeaders.set("Authorization", `Bearer ${authSession.token}`);
+  return fetch(input, { ...init, headers: retryHeaders });
+}
+
+function applyAuthSession(session: AuthSession) {
+  authSession = session;
+  pendingEmail = session.user.email;
+  authSessionEmail.textContent = `Signed in as ${session.user.email}`;
+  authSessionPanel.hidden = false;
+  updateAuthTrigger();
+}
+
+function clearAuthSession() {
+  authSession = null;
+  pendingEmail = "";
+  authSessionEmail.textContent = "Signed in.";
+  authSessionPanel.hidden = true;
+  updateAuthTrigger();
+}
+
+function updateAuthTrigger() {
+  if (authSession) {
+    authTriggerLabel.textContent = authSession.user.firstName || "Account";
+    logoutButton.hidden = false;
+  } else {
+    authTriggerLabel.textContent = "Sign in";
+    logoutButton.hidden = true;
+  }
+}
+
+function openAuthPanel(message?: string) {
+  authPanel.hidden = false;
+  appPanel.hidden = true;
+  window.location.hash = "auth-panel";
+  authPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  if (authSession) {
+    authSessionPanel.hidden = false;
+    authStartPanel.hidden = true;
+    codePanel.hidden = true;
+    return;
+  }
+
+  authSessionPanel.hidden = true;
+  authStartPanel.hidden = false;
+  codePanel.hidden = true;
+  setAuthStatus(message || "", message ? "error" : "idle");
+  firstNameInput.focus();
+}
+
+function showCodePanel(maskedEmail: string) {
+  authPanel.hidden = false;
+  appPanel.hidden = true;
+  authSessionPanel.hidden = true;
+  authStartPanel.hidden = true;
+  codePanel.hidden = false;
+  codeEmail.textContent = maskedEmail || pendingEmail;
+  setCodeStatus("", "idle");
+  codeInput.focus();
+}
+
+function closeAuthPanel() {
+  authPanel.hidden = true;
+  appPanel.hidden = false;
+  authStartPanel.hidden = false;
+  codePanel.hidden = true;
+  setAuthStatus("", "idle");
+  setCodeStatus("", "idle");
+}
+
+function setAuthStatus(message: string, type: "idle" | "success" | "error") {
+  authStatus.textContent = message;
+  authStatus.dataset.type = type;
+}
+
+function setCodeStatus(message: string, type: "idle" | "success" | "error") {
+  codeStatus.textContent = message;
+  codeStatus.dataset.type = type;
+}
+
+function setAuthLoading(isLoading: boolean) {
+  authSubmitButton.disabled = isLoading;
+  authSubmitButton.textContent = isLoading ? "Continuing..." : "Continue";
+}
+
+function setCodeLoading(isLoading: boolean) {
+  codeSubmitButton.disabled = isLoading;
+  codeSubmitButton.textContent = isLoading ? "Verifying..." : "Verify";
+}
+
+async function handleLogout() {
+  try {
+    await fetch(getApiUrl("/api/auth/logout"), {
+      method: "POST",
+      credentials: "include"
+    });
+  } catch {
+    // Ignore logout errors.
+  } finally {
+    clearAuthSession();
+    hideResults();
+    setStatus("", "idle");
+    closeAuthPanel();
+  }
+}
+
+function initGoogleButton() {
+  if (!googleClientId) {
+    googleButton.hidden = true;
+    return;
+  }
+
+  const googleApi = (window as Window & { google?: any }).google;
+  if (!googleApi?.accounts?.id) {
+    return;
+  }
+
+  googleApi.accounts.id.initialize({
+    client_id: googleClientId,
+    callback: handleGoogleCredential
+  });
+
+  googleApi.accounts.id.renderButton(googleButton, {
+    theme: "outline",
+    size: "large",
+    shape: "pill",
+    text: "continue_with"
+  });
+}
+
+async function handleGoogleCredential(response: { credential: string }) {
+  setAuthStatus("Checking Google account...", "idle");
+  setAuthLoading(true);
+  openAuthPanel();
+
+  try {
+    const apiResponse = await fetch(getApiUrl("/api/auth/google"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        credential: response.credential
+      })
+    });
+
+    const data = (await apiResponse.json()) as AuthStartResponse | ErrorResponse;
+    if (!apiResponse.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Google sign-in failed.");
+    }
+
+    pendingEmail = data.email;
+    showCodePanel(data.maskedEmail);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Google sign-in failed.";
+    setAuthStatus(message, "error");
+  } finally {
+    setAuthLoading(false);
+  }
 }

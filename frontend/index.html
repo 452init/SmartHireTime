@@ -14,73 +14,207 @@
   <body>
     <main class="boardroom">
       <header class="topbar">
-        <div>
+        <div class="topbar-brand">
           <p class="eyebrow">Be Confident In Your Career</p>
-          <h1>The Boardroom</h1>
+          <div class="brand-row">
+            <h1>The Boardroom</h1>
+            <div class="brand-mark" aria-hidden="true">
+              <span></span>
+            </div>
+          </div>
         </div>
-        <div class="brand-mark" aria-hidden="true">
-          <span></span>
+        <div class="topbar-actions">
+          <button id="auth-trigger" class="auth-trigger" type="button">
+            <span class="auth-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" role="presentation">
+                <path d="M12 12.5a4 4 0 1 0-0.001-8.001A4 4 0 0 0 12 12.5Z" />
+                <path d="M4 20c1.6-3.2 4.3-4.8 8-4.8s6.4 1.6 8 4.8" />
+              </svg>
+            </span>
+            <span id="auth-trigger-label">Sign in</span>
+          </button>
+          <button id="logout-button" class="ghost-btn" type="button" hidden>
+            Sign out
+          </button>
         </div>
       </header>
 
       <section class="workspace" aria-labelledby="page-title">
-        <div class="tagline">
-          <h2 id="page-title">
-            Craft the Perfect <em>Interview</em>
-          </h2>
-          <p>Precision-engineered questions for professionals</p>
-        </div>
-
-        <form id="question-form" class="generator-panel">
-          <div class="field-group">
-            <label for="job-title">Position</label>
-            <input
-              id="job-title"
-              class="gold-input"
-              name="jobTitle"
-              type="text"
-              value="Customer Success Manager"
-              placeholder="e.g. Chief Product Officer, Senior Engineer..."
-              autocomplete="off"
-              required
-            />
+        <section id="auth-panel" class="auth-panel" hidden>
+          <div id="auth-session" class="auth-card" hidden>
+            <div class="auth-header">
+              <h2>You're signed in</h2>
+              <p id="auth-session-email">Signed in.</p>
+            </div>
           </div>
 
-          <div class="field-group">
-            <label>Seniority Level</label>
-            <div id="level-options" class="pill-group" aria-label="Seniority level"></div>
+          <div id="auth-start" class="auth-card">
+            <div class="auth-header">
+              <h2 id="auth-title">Sign in to continue</h2>
+              <p>Use your email and password or continue with Google.</p>
+            </div>
+
+            <form id="auth-form" class="auth-form" autocomplete="on">
+              <div class="auth-grid">
+                <div class="field-group">
+                  <label for="first-name">First name</label>
+                  <input
+                    id="first-name"
+                    class="gold-input"
+                    name="firstName"
+                    type="text"
+                    autocomplete="given-name"
+                    required
+                  />
+                </div>
+                <div class="field-group">
+                  <label for="last-name">Last name</label>
+                  <input
+                    id="last-name"
+                    class="gold-input"
+                    name="lastName"
+                    type="text"
+                    autocomplete="family-name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div class="field-group">
+                <label for="auth-email">Email</label>
+                <input
+                  id="auth-email"
+                  class="gold-input"
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  required
+                />
+              </div>
+
+              <div class="field-group">
+                <label for="auth-password">Password</label>
+                <input
+                  id="auth-password"
+                  class="gold-input"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  minlength="8"
+                  required
+                />
+              </div>
+
+              <div class="action-row">
+                <button id="auth-submit" class="gen-btn" type="submit">
+                  Continue
+                </button>
+              </div>
+            </form>
+
+            <div class="auth-divider"><span>or</span></div>
+            <div id="google-button" class="google-button" aria-label="Continue with Google"></div>
+            <div id="auth-status" class="status" role="status" aria-live="polite"></div>
           </div>
 
-          <div class="field-group">
-            <label>Focus Area</label>
-            <div id="category-options" class="pill-group" aria-label="Focus area"></div>
+          <div id="code-panel" class="auth-card" hidden>
+            <div class="auth-header">
+              <h2>Enter your code</h2>
+              <p>
+                We emailed a 6-digit code to
+                <span id="code-email" class="code-email"></span>.
+              </p>
+            </div>
+
+            <form id="code-form" class="auth-form">
+              <div class="field-group">
+                <label for="auth-code">Verification code</label>
+                <input
+                  id="auth-code"
+                  class="gold-input"
+                  name="code"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[0-9]{6}"
+                  maxlength="6"
+                  autocomplete="one-time-code"
+                  required
+                />
+              </div>
+              <div class="action-row">
+                <button id="code-submit" class="gen-btn" type="submit">
+                  Verify
+                </button>
+              </div>
+            </form>
+
+            <div class="code-actions">
+              <button id="code-resend" class="ghost-btn" type="button">Resend code</button>
+              <button id="code-back" class="ghost-btn" type="button">Use a different email</button>
+            </div>
+            <div id="code-status" class="status" role="status" aria-live="polite"></div>
           </div>
-
-          <div class="action-row">
-            <button id="generate-button" class="gen-btn" type="submit">
-              Generate Questions
-            </button>
-          </div>
-        </form>
-
-        <div id="status" class="status" role="status" aria-live="polite"></div>
-
-        <section id="loading-panel" class="loading-panel" hidden>
-          <div class="spinner" aria-hidden="true"></div>
-          <p>Composing your questions...</p>
         </section>
 
-        <section id="results-panel" class="results-panel" hidden>
-          <div class="divider"></div>
-          <div class="results-header">
-            <h2>Interview Questions</h2>
-            <span id="prepared-count">0 prepared</span>
+        <section id="app-panel" class="app-panel">
+          <div class="tagline">
+            <h2 id="page-title">
+              Craft the Perfect <em>Interview</em>
+            </h2>
+            <p>Precision-engineered questions for professionals</p>
           </div>
-          <div id="questions" class="questions" aria-label="Generated questions"></div>
+
+          <form id="question-form" class="generator-panel">
+            <div class="field-group">
+              <label for="job-title">Position</label>
+              <input
+                id="job-title"
+                class="gold-input"
+                name="jobTitle"
+                type="text"
+                value="Customer Success Manager"
+                placeholder="e.g. Chief Product Officer, Senior Engineer..."
+                autocomplete="off"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>Seniority Level</label>
+              <div id="level-options" class="pill-group" aria-label="Seniority level"></div>
+            </div>
+
+            <div class="field-group">
+              <label>Focus Area</label>
+              <div id="category-options" class="pill-group" aria-label="Focus area"></div>
+            </div>
+
+            <div class="action-row">
+              <button id="generate-button" class="gen-btn" type="submit">
+                Generate Questions
+              </button>
+            </div>
+          </form>
+
+          <div id="status" class="status" role="status" aria-live="polite"></div>
+
+          <section id="loading-panel" class="loading-panel" hidden>
+            <div class="spinner" aria-hidden="true"></div>
+            <p>Composing your questions...</p>
+          </section>
+
+          <section id="results-panel" class="results-panel" hidden>
+            <div class="divider"></div>
+            <div class="results-header">
+              <h2>Interview Questions</h2>
+              <span id="prepared-count">0 prepared</span>
+            </div>
+            <div id="questions" class="questions" aria-label="Generated questions"></div>
+          </section>
         </section>
       </section>
     </main>
-
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
