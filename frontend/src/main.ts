@@ -21,6 +21,7 @@ type AuthUser = {
   email: string;
   firstName: string;
   lastName: string;
+  profileImageUrl?: string | null;
 };
 
 type AuthSession = {
@@ -51,6 +52,8 @@ type FocusProfile = {
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
+const cloudinaryCloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
+const cloudinaryUploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
 const levels = ["Junior", "Mid-Level", "Senior", "Executive"];
 const defaultFocusAreas = [
   "Role-Specific Judgment",
@@ -412,14 +415,21 @@ const focusProfiles: FocusProfile[] = [
   }
 ];
 
+// ─── State ────────────────────────────────────────────────────────────────────
+
 let selectedLevel = "Mid-Level";
 let focusAreas = getFocusAreas("Customer Success Manager");
 let selectedCategory = focusAreas[0];
 
 let authSession: AuthSession | null = null;
 let pendingEmail = "";
+let pendingGenerate = false;        // tracks whether user tried to generate before auth
 let isRegistering = false;
 let isAuthLoading = false;
+let postAuthView: "app" | "dashboard" = "app";
+let selectedPhotoFile: File | null = null;
+
+// ─── DOM References ───────────────────────────────────────────────────────────
 
 const authTrigger = getElement<HTMLButtonElement>("#auth-trigger");
 const authTriggerLabel = getElement<HTMLSpanElement>("#auth-trigger-label");
@@ -451,6 +461,20 @@ const codeResendButton = getElement<HTMLButtonElement>("#code-resend");
 const codeBackButton = getElement<HTMLButtonElement>("#code-back");
 
 const topbar = getElement<HTMLElement>(".topbar");
+const dashboardPanel = getElement<HTMLElement>("#dashboard-panel");
+const dashboardCloseButton = getElement<HTMLButtonElement>("#dashboard-close");
+const profilePhotoInput = getElement<HTMLInputElement>("#profile-photo-input");
+const profilePhotoUploadButton = getElement<HTMLButtonElement>("#profile-photo-upload");
+const profilePhotoPreview = getElement<HTMLImageElement>("#profile-photo-preview");
+const profilePhotoPlaceholder = getElement<HTMLElement>("#profile-photo-placeholder");
+const profilePhotoStatus = getElement<HTMLDivElement>("#profile-photo-status");
+const passwordForm = getElement<HTMLFormElement>("#password-form");
+const currentPasswordInput = getElement<HTMLInputElement>("#current-password");
+const newPasswordInput = getElement<HTMLInputElement>("#new-password");
+const confirmPasswordInput = getElement<HTMLInputElement>("#confirm-password");
+const passwordStatus = getElement<HTMLDivElement>("#password-status");
+const deleteAccountButton = getElement<HTMLButtonElement>("#delete-account-button");
+const deleteStatus = getElement<HTMLDivElement>("#delete-status");
 const appPanel = getElement<HTMLElement>("#app-panel");
 const form = getElement<HTMLFormElement>("#question-form");
 const input = getElement<HTMLInputElement>("#job-title");
@@ -463,12 +487,23 @@ const preparedCount = getElement<HTMLSpanElement>("#prepared-count");
 const levelOptions = getElement<HTMLDivElement>("#level-options");
 const categoryOptions = getElement<HTMLDivElement>("#category-options");
 
+// ─── Initialise ───────────────────────────────────────────────────────────────
+
 refreshOptionGroups();
 updateGenerateButton();
 setAuthMode(false);
 
+// ─── Event Listeners ──────────────────────────────────────────────────────────
+
+// When logged in, the auth-trigger opens the dashboard.
+// When logged out, it opens the sign-in panel.
 authTrigger.addEventListener("click", () => {
-  openAuthPanel();
+  if (authSession) {
+    openDashboard();
+  } else {
+    postAuthView = "app";
+    openAuthPanel();
+  }
 });
 
 authModeToggle.addEventListener("click", () => {
@@ -477,6 +512,29 @@ authModeToggle.addEventListener("click", () => {
 
 logoutButton.addEventListener("click", () => {
   void handleLogout();
+});
+
+dashboardCloseButton.addEventListener("click", () => {
+  closeDashboard();
+});
+
+profilePhotoInput.addEventListener("change", () => {
+  const file = profilePhotoInput.files?.[0] || null;
+  selectedPhotoFile = file;
+  setProfilePhotoPreview(file);
+});
+
+profilePhotoUploadButton.addEventListener("click", () => {
+  void handlePhotoUpload();
+});
+
+passwordForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void handlePasswordChange();
+});
+
+deleteAccountButton.addEventListener("click", () => {
+  void handleDeleteAccount();
 });
 
 authForm.addEventListener("submit", async (event) => {
@@ -501,11 +559,10 @@ authForm.addEventListener("submit", async (event) => {
   try {
     const response = await fetch(getApiUrl("/api/auth/start"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
+        mode: isRegistering ? "signup" : "signin",
         firstName,
         lastName,
         email,
@@ -514,7 +571,16 @@ authForm.addEventListener("submit", async (event) => {
     });
 
     const data = (await response.json()) as AuthStartResponse | ErrorResponse;
+
     if (!response.ok || "error" in data) {
+      // No account found during sign-in → switch to sign-up form automatically
+      if (response.status === 404 && !isRegistering) {
+        setAuthMode(true);
+      }
+      // Account already exists during sign-up → switch to sign-in form automatically
+      if (response.status === 409 && isRegistering) {
+        setAuthMode(false);
+      }
       throw new Error("error" in data ? data.error : "Unable to start sign-in.");
     }
 
@@ -552,14 +618,9 @@ codeForm.addEventListener("submit", async (event) => {
   try {
     const response = await fetch(getApiUrl("/api/auth/verify"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        email,
-        code
-      })
+      body: JSON.stringify({ email, code })
     });
 
     const data = (await response.json()) as AuthVerifyResponse | ErrorResponse;
@@ -567,9 +628,15 @@ codeForm.addEventListener("submit", async (event) => {
       throw new Error("error" in data ? data.error : "Unable to verify code.");
     }
 
+    // Apply session — this internally calls closeAuthPanel() and shows the right panel.
     applyAuthSession({ token: data.token, user: data.user });
     codeInput.value = "";
-    closeAuthPanel();
+
+    // If the user was trying to generate before auth, resume that now.
+    if (pendingGenerate) {
+      pendingGenerate = false;
+      form.requestSubmit();
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to verify code.";
     setCodeStatus(message, "error");
@@ -589,13 +656,9 @@ codeResendButton.addEventListener("click", async () => {
   try {
     const response = await fetch(getApiUrl("/api/auth/request-code"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        email: pendingEmail
-      })
+      body: JSON.stringify({ email: pendingEmail })
     });
 
     const data = (await response.json()) as AuthStartResponse | ErrorResponse;
@@ -631,11 +694,9 @@ input.addEventListener("keydown", (event) => {
 
 input.addEventListener("input", () => {
   focusAreas = getFocusAreas(input.value);
-
   if (!focusAreas.includes(selectedCategory)) {
     selectedCategory = focusAreas[0];
   }
-
   refreshOptionGroups();
   updateGenerateButton();
 });
@@ -644,7 +705,6 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
 
   const role = input.value.trim();
-
   if (!role) {
     setStatus("Enter a position to begin.", "error");
     hideResults();
@@ -653,6 +713,9 @@ form.addEventListener("submit", async (event) => {
 
   const hasSession = await ensureAuthSession();
   if (!hasSession) {
+    // Intercept and remember the intent — resume after auth.
+    pendingGenerate = true;
+    postAuthView = "app";
     setStatus("Sign in to generate questions.", "error");
     openAuthPanel("Sign in to generate questions.");
     return;
@@ -665,9 +728,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const response = await fetchWithAuth(getApiUrl("/api/interview-questions"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         jobTitle: role,
         level: selectedLevel,
@@ -701,12 +762,13 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+// ─── Option Groups ────────────────────────────────────────────────────────────
+
 function refreshOptionGroups() {
   renderOptions(levelOptions, levels, selectedLevel, (level) => {
     selectedLevel = level;
     refreshOptionGroups();
   });
-
   renderOptions(categoryOptions, focusAreas, selectedCategory, (category) => {
     selectedCategory = category;
     refreshOptionGroups();
@@ -718,7 +780,6 @@ function getFocusAreas(role: string) {
   const matchingProfile = focusProfiles.find((profile) =>
     profile.keywords.some((keyword) => normalizedRole.includes(normalizeRole(keyword)))
   );
-
   return matchingProfile?.areas || defaultFocusAreas;
 }
 
@@ -737,7 +798,6 @@ function renderOptions(
   onSelect: (value: string) => void
 ) {
   container.innerHTML = "";
-
   options.forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -747,6 +807,8 @@ function renderOptions(
     container.appendChild(button);
   });
 }
+
+// ─── Questions ────────────────────────────────────────────────────────────────
 
 function renderQuestions(questions: GeneratedQuestion[]) {
   questionsContainer.innerHTML = "";
@@ -780,7 +842,6 @@ function renderQuestions(questions: GeneratedQuestion[]) {
 
 function normalizeQuestions(questions: Array<string | GeneratedQuestion>) {
   const fallbackDifficulties: Difficulty[] = ["Easy", "Medium", "Hard"];
-
   return questions.map((item, index) => {
     if (typeof item === "string") {
       return {
@@ -788,7 +849,6 @@ function normalizeQuestions(questions: Array<string | GeneratedQuestion>) {
         difficulty: fallbackDifficulties[index % fallbackDifficulties.length]
       };
     }
-
     return {
       question: item.question,
       difficulty: item.difficulty || fallbackDifficulties[index % fallbackDifficulties.length]
@@ -801,6 +861,8 @@ function hideResults() {
   preparedCount.textContent = "0 prepared";
   resultsPanel.hidden = true;
 }
+
+// ─── Status / Loading ─────────────────────────────────────────────────────────
 
 function setStatus(message: string, type: "idle" | "success" | "error") {
   statusMessage.textContent = message;
@@ -817,19 +879,30 @@ function updateGenerateButton(isLoading = false) {
   submitButton.disabled = isLoading || !input.value.trim();
 }
 
+function setPanelStatus(
+  element: HTMLDivElement,
+  message: string,
+  type: "idle" | "success" | "error"
+) {
+  element.textContent = message;
+  element.dataset.type = type;
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+
 function getElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
-
   if (!element) {
     throw new Error(`Missing page element: ${selector}`);
   }
-
   return element;
 }
 
 function getApiUrl(path: string) {
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
 }
+
+// ─── Auth Session ─────────────────────────────────────────────────────────────
 
 async function initializeAuth() {
   updateAuthTrigger();
@@ -841,10 +914,7 @@ async function initializeAuth() {
 }
 
 async function ensureAuthSession() {
-  if (authSession) {
-    return true;
-  }
-
+  if (authSession) return true;
   return refreshSession();
 }
 
@@ -854,11 +924,7 @@ async function refreshSession() {
       method: "POST",
       credentials: "include"
     });
-
-    if (!response.ok) {
-      return false;
-    }
-
+    if (!response.ok) return false;
     const data = (await response.json()) as AuthRefreshResponse;
     applyAuthSession({ token: data.token, user: data.user });
     return true;
@@ -874,14 +940,10 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
   }
 
   const response = await fetch(input, { ...init, headers });
-  if (response.status !== 401) {
-    return response;
-  }
+  if (response.status !== 401) return response;
 
   const refreshed = await refreshSession();
-  if (!refreshed || !authSession?.token) {
-    return response;
-  }
+  if (!refreshed || !authSession?.token) return response;
 
   const retryHeaders = new Headers(init.headers ?? {});
   retryHeaders.set("Authorization", `Bearer ${authSession.token}`);
@@ -894,19 +956,23 @@ function applyAuthSession(session: AuthSession) {
   authSessionEmail.textContent = `Signed in as ${session.user.email}`;
   authSessionPanel.hidden = true;
   updateAuthTrigger();
+  updateDashboardView();
   closeAuthPanel();
 }
 
 function clearAuthSession() {
   authSession = null;
   pendingEmail = "";
+  pendingGenerate = false;
   authSessionEmail.textContent = "Signed in.";
   authSessionPanel.hidden = true;
+  dashboardPanel.hidden = true;
   updateAuthTrigger();
 }
 
 function updateAuthTrigger() {
   if (authSession) {
+    // Show the user's first name on the trigger; clicking it opens the dashboard.
     authTriggerLabel.textContent = authSession.user.firstName || "Account";
     logoutButton.hidden = false;
   } else {
@@ -915,10 +981,13 @@ function updateAuthTrigger() {
   }
 }
 
+// ─── Auth Panel (overlay modal) ───────────────────────────────────────────────
+
 function openAuthPanel(message?: string) {
   authPanel.hidden = false;
   document.body.classList.add("auth-open");
   topbar.hidden = true;
+  dashboardPanel.hidden = true;
   appPanel.hidden = true;
   window.location.hash = "auth-panel";
   authPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -942,6 +1011,7 @@ function showCodePanel(maskedEmail: string) {
   authPanel.hidden = false;
   document.body.classList.add("auth-open");
   topbar.hidden = true;
+  dashboardPanel.hidden = true;
   appPanel.hidden = true;
   authSessionPanel.hidden = true;
   authStartPanel.hidden = true;
@@ -955,11 +1025,20 @@ function closeAuthPanel() {
   authPanel.hidden = true;
   document.body.classList.remove("auth-open");
   topbar.hidden = false;
-  appPanel.hidden = false;
+
+  if (postAuthView === "dashboard") {
+    dashboardPanel.hidden = false;
+    appPanel.hidden = true;
+  } else {
+    dashboardPanel.hidden = true;
+    appPanel.hidden = false;
+  }
+
   authStartPanel.hidden = false;
   codePanel.hidden = true;
   setAuthStatus("", "idle");
   setCodeStatus("", "idle");
+  postAuthView = "app";
 }
 
 function setAuthStatus(message: string, type: "idle" | "success" | "error") {
@@ -992,11 +1071,9 @@ function setAuthMode(registering: boolean) {
   authModeToggle.textContent = registering
     ? "Already have an account? Sign in"
     : "New here? Create account";
-
   if (!isAuthLoading) {
     authSubmitButton.textContent = getAuthSubmitText();
   }
-
   if (!registering) {
     firstNameInput.value = "";
     lastNameInput.value = "";
@@ -1006,6 +1083,204 @@ function setAuthMode(registering: boolean) {
 function getAuthSubmitText() {
   return isRegistering ? "Create account" : "Sign in";
 }
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+function openDashboard() {
+  if (!authSession) {
+    postAuthView = "dashboard";
+    openAuthPanel("Sign in to access your dashboard.");
+    return;
+  }
+
+  authPanel.hidden = true;
+  document.body.classList.remove("auth-open");
+  topbar.hidden = false;
+  dashboardPanel.hidden = false;
+  appPanel.hidden = true;
+  updateDashboardView();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeDashboard() {
+  dashboardPanel.hidden = true;
+  appPanel.hidden = false;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateDashboardView() {
+  if (!authSession) return;
+  const imageUrl = authSession.user.profileImageUrl || "";
+  if (imageUrl) {
+    profilePhotoPreview.src = imageUrl;
+    profilePhotoPreview.hidden = false;
+    profilePhotoPlaceholder.hidden = true;
+  } else {
+    profilePhotoPreview.hidden = true;
+    profilePhotoPlaceholder.hidden = false;
+  }
+}
+
+function setProfilePhotoPreview(file: File | null) {
+  const existingUrl = profilePhotoPreview.dataset.previewUrl;
+  if (existingUrl) {
+    URL.revokeObjectURL(existingUrl);
+    delete profilePhotoPreview.dataset.previewUrl;
+  }
+
+  if (file) {
+    const url = URL.createObjectURL(file);
+    profilePhotoPreview.src = url;
+    profilePhotoPreview.dataset.previewUrl = url;
+    profilePhotoPreview.hidden = false;
+    profilePhotoPlaceholder.hidden = true;
+    return;
+  }
+
+  updateDashboardView();
+}
+
+async function handlePhotoUpload() {
+  if (!authSession) {
+    postAuthView = "dashboard";
+    openAuthPanel("Sign in to update your profile photo.");
+    return;
+  }
+
+  if (!selectedPhotoFile) {
+    setPanelStatus(profilePhotoStatus, "Choose a photo to upload.", "error");
+    return;
+  }
+
+  if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
+    setPanelStatus(profilePhotoStatus, "Cloudinary is not configured.", "error");
+    return;
+  }
+
+  setPanelStatus(profilePhotoStatus, "Uploading...", "idle");
+
+  try {
+    const imageUrl = await uploadToCloudinary(selectedPhotoFile);
+    const response = await fetchWithAuth(getApiUrl("/api/account/photo"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl })
+    });
+
+    const data = (await response.json()) as { user: AuthUser } | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to update photo.");
+    }
+
+    authSession.user = data.user;
+    selectedPhotoFile = null;
+    updateDashboardView();
+    setPanelStatus(profilePhotoStatus, "Photo updated.", "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update photo.";
+    setPanelStatus(profilePhotoStatus, message, "error");
+  }
+}
+
+async function uploadToCloudinary(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", cloudinaryUploadPreset);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
+    { method: "POST", body: formData }
+  );
+
+  const data = (await response.json()) as { secure_url?: string; error?: { message?: string } };
+  if (!response.ok || !data.secure_url) {
+    throw new Error(data.error?.message || "Upload failed.");
+  }
+
+  return data.secure_url;
+}
+
+async function handlePasswordChange() {
+  if (!authSession) {
+    postAuthView = "dashboard";
+    openAuthPanel("Sign in to update your password.");
+    return;
+  }
+
+  const currentPassword = currentPasswordInput.value;
+  const newPassword = newPasswordInput.value;
+  const confirmPassword = confirmPasswordInput.value;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    setPanelStatus(passwordStatus, "Complete all password fields.", "error");
+    return;
+  }
+  if (newPassword.length < 8) {
+    setPanelStatus(passwordStatus, "New password must be at least 8 characters.", "error");
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    setPanelStatus(passwordStatus, "Passwords do not match.", "error");
+    return;
+  }
+
+  setPanelStatus(passwordStatus, "Updating password...", "idle");
+
+  try {
+    const response = await fetchWithAuth(getApiUrl("/api/account/password"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    const data = (await response.json()) as { status?: string } | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to update password.");
+    }
+
+    currentPasswordInput.value = "";
+    newPasswordInput.value = "";
+    confirmPasswordInput.value = "";
+    setPanelStatus(passwordStatus, "Password updated.", "success");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to update password.";
+    setPanelStatus(passwordStatus, message, "error");
+  }
+}
+
+async function handleDeleteAccount() {
+  if (!authSession) {
+    postAuthView = "dashboard";
+    openAuthPanel("Sign in to delete your account.");
+    return;
+  }
+
+  if (!window.confirm("Delete your account? This cannot be undone.")) return;
+
+  setPanelStatus(deleteStatus, "Deleting account...", "idle");
+
+  try {
+    const response = await fetchWithAuth(getApiUrl("/api/account/delete"), {
+      method: "POST",
+      credentials: "include"
+    });
+
+    const data = (await response.json()) as { status?: string } | ErrorResponse;
+    if (!response.ok || "error" in data) {
+      throw new Error("error" in data ? data.error : "Unable to delete account.");
+    }
+
+    setPanelStatus(deleteStatus, "Account deleted.", "success");
+    clearAuthSession();
+    dashboardPanel.hidden = true;
+    appPanel.hidden = false;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to delete account.";
+    setPanelStatus(deleteStatus, message, "error");
+  }
+}
+
+// ─── Logout ───────────────────────────────────────────────────────────────────
 
 async function handleLogout() {
   try {
@@ -1017,11 +1292,15 @@ async function handleLogout() {
     // Ignore logout errors.
   } finally {
     clearAuthSession();
+    dashboardPanel.hidden = true;
+    appPanel.hidden = false;
     hideResults();
     setStatus("", "idle");
     closeAuthPanel();
   }
 }
+
+// ─── Google Sign-in ───────────────────────────────────────────────────────────
 
 function initGoogleButton() {
   if (!googleClientId) {
@@ -1030,9 +1309,7 @@ function initGoogleButton() {
   }
 
   const googleApi = (window as Window & { google?: any }).google;
-  if (!googleApi?.accounts?.id) {
-    return;
-  }
+  if (!googleApi?.accounts?.id) return;
 
   googleApi.accounts.id.initialize({
     client_id: googleClientId,
@@ -1055,13 +1332,9 @@ async function handleGoogleCredential(response: { credential: string }) {
   try {
     const apiResponse = await fetch(getApiUrl("/api/auth/google"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({
-        credential: response.credential
-      })
+      body: JSON.stringify({ credential: response.credential })
     });
 
     const data = (await apiResponse.json()) as AuthStartResponse | ErrorResponse;
