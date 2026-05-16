@@ -151,7 +151,7 @@ def health_check():
 @app.post("/api/interview-questions")
 def create_interview_questions():
     try:
-        require_authenticated_user()
+        require_authenticated_user(allowed_purposes={"login"})
         payload = request.get_json(silent=True) or {}
         job_title = str(payload.get("jobTitle", "")).strip()
 
@@ -537,11 +537,25 @@ def account_password_update():
             if not verify_password(current_password, existing_hash):
                 return jsonify({"error": "Current password is incorrect."}), 401
 
-        update_user_password_hash(
+        updated_user = update_user_password_hash(
             CONFIG["database_url"],
             user["id"],
             hash_password(new_password),
         )
+        if session.get("purpose") == "recovery":
+            now = datetime.now(timezone.utc)
+            refresh_token = generate_refresh_token()
+            token_hash = hash_refresh_token(refresh_token, AUTH_SECRET)
+            expires_at = now + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS)
+            create_refresh_token(
+                CONFIG["database_url"],
+                user["id"],
+                token_hash,
+                expires_at,
+                purpose="login",
+            )
+            return create_session_response(updated_user, refresh_token, "login")
+
         return jsonify({"status": "updated"})
     except AuthTokenError as exc:
         return jsonify({"error": str(exc)}), exc.status
@@ -555,7 +569,7 @@ def account_password_update():
 @app.post("/api/account/delete")
 def account_delete():
     try:
-        user = require_authenticated_user()
+        user = require_authenticated_user(allowed_purposes={"login"})
         photo_public_id = user.get("profile_image_public_id")
 
         if photo_public_id:
@@ -583,7 +597,7 @@ def account_delete():
 @app.post("/api/account/photo")
 def account_photo_upload():
     try:
-        user = require_authenticated_user()
+        user = require_authenticated_user(allowed_purposes={"login"})
         image_file = request.files.get("file")
         if not image_file:
             return jsonify({"error": "Choose a photo to upload."}), 400
@@ -637,7 +651,7 @@ def account_photo_upload():
 @app.delete("/api/account/photo")
 def account_photo_delete():
     try:
-        user = require_authenticated_user()
+        user = require_authenticated_user(allowed_purposes={"login"})
         existing_public_id = user.get("profile_image_public_id")
 
         if existing_public_id:
@@ -686,17 +700,21 @@ def main():
     app.run(host="0.0.0.0", port=CONFIG["port"])
 
 
-def require_authenticated_user():
-    user, _session = require_authenticated_session()
+def require_authenticated_user(allowed_purposes=None):
+    user, _session = require_authenticated_session(allowed_purposes)
     return user
 
 
-def require_authenticated_session():
+def require_authenticated_session(allowed_purposes=None):
     token = get_bearer_token()
     if not token:
         raise AuthTokenError("Authentication required.")
 
     payload = verify_access_token(AUTH_SECRET, token)
+    purpose = payload.get("purpose") or "login"
+    if allowed_purposes is not None and purpose not in allowed_purposes:
+        raise AuthTokenError("Please finish resetting your password before continuing.", 403)
+
     try:
         user_id = int(payload.get("sub", 0))
     except (TypeError, ValueError):
@@ -730,7 +748,7 @@ def issue_auth_code(user, email, purpose="login"):
         expires_at,
         purpose=purpose,
     )
-    send_code_email(email, code, BREVO_CONFIG)
+    send_code_email(email, code, BREVO_CONFIG, purpose)
 
 
 def create_session_response(user, refresh_token, session_purpose="login"):
@@ -753,24 +771,37 @@ def get_refresh_cookie():
 
 
 def set_refresh_cookie(response, token):
+    secure, samesite = get_refresh_cookie_policy()
     response.set_cookie(
         REFRESH_COOKIE_NAME,
         token,
         max_age=REFRESH_TOKEN_TTL_SECONDS,
         httponly=True,
-        secure=COOKIE_SECURE,
-        samesite=COOKIE_SAMESITE,
+        secure=secure,
+        samesite=samesite,
         domain=COOKIE_DOMAIN,
         path="/",
     )
 
 
 def clear_refresh_cookie(response):
+    secure, samesite = get_refresh_cookie_policy()
     response.delete_cookie(
         REFRESH_COOKIE_NAME,
         domain=COOKIE_DOMAIN,
         path="/",
+        secure=secure,
+        samesite=samesite,
     )
+
+
+def get_refresh_cookie_policy():
+    origin = request.headers.get("Origin", "")
+    is_https_frontend = origin.startswith("https://")
+    if is_https_frontend:
+        return True, "None"
+
+    return COOKIE_SECURE, COOKIE_SAMESITE
 
 
 def unauthorized_response(message):

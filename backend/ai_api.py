@@ -1,6 +1,9 @@
 import json
 from urllib import error, request
 
+TINYFISH_TIMEOUT_SECONDS = 25
+_supports_output_schema = True
+
 
 class MissingApiKeyError(Exception):
     pass
@@ -15,12 +18,14 @@ def call_ai_api(prompt, api_key, question_count=3):
     body = {
         "url": "https://example.com",
         "goal": (
-            "Follow the prompt exactly and return JSON matching the output_schema "
+            "Follow the prompt exactly and return JSON "
             f"with exactly {question_count} questions. "
             f"{prompt}"
         ),
         "browser_profile": "lite",
-        "output_schema": {
+    }
+    if _supports_output_schema:
+        body["output_schema"] = {
             "type": "object",
             "properties": {
                 "questions": {
@@ -39,8 +44,7 @@ def call_ai_api(prompt, api_key, question_count=3):
                 }
             },
             "required": ["questions"],
-        },
-    }
+        }
 
     result = run_tinyfish_automation(body, api_key)
 
@@ -51,6 +55,8 @@ def call_ai_api(prompt, api_key, question_count=3):
 
 
 def run_tinyfish_automation(body, api_key):
+    global _supports_output_schema
+
     api_request = request.Request(
         "https://agent.tinyfish.ai/v1/automation/run",
         data=json.dumps(body).encode("utf-8"),
@@ -62,7 +68,7 @@ def run_tinyfish_automation(body, api_key):
     )
 
     try:
-        with request.urlopen(api_request, timeout=30) as response:
+        with request.urlopen(api_request, timeout=TINYFISH_TIMEOUT_SECONDS) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
         try:
@@ -73,6 +79,7 @@ def run_tinyfish_automation(body, api_key):
         print(f"TinyFish HTTPError: code={exc.code} detail={detail}")
 
         if exc.code == 403 and "output_schema" in detail:
+            _supports_output_schema = False
             fallback_body = dict(body)
             fallback_body.pop("output_schema", None)
             return run_tinyfish_automation(fallback_body, api_key)

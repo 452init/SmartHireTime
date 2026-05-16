@@ -526,7 +526,7 @@ authModeToggle.addEventListener("click", () => {
 
 forgotPasswordButton.addEventListener("click", () => {
   setAuthMode("recover");
-  openAuthPanel("Enter your email and we’ll send a login code.", true);
+  openAuthPanel("Enter your email and we’ll send a password reset code.", true);
 });
 
 logoutButton.addEventListener("click", () => {
@@ -1279,9 +1279,12 @@ async function handlePasswordChange() {
       body: JSON.stringify(isRecoverySession ? { newPassword } : { currentPassword, newPassword })
     });
 
-    const data = (await response.json()) as { status?: string } | ErrorResponse;
+    const data = (await response.json()) as AuthVerifyResponse | { status?: string } | ErrorResponse;
     if (!response.ok || "error" in data) {
       throw new Error("error" in data ? data.error : "Unable to update password.");
+    }
+    if ("token" in data) {
+      applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
     }
 
     currentPasswordInput.value = "";

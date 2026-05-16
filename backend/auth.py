@@ -85,7 +85,7 @@ def hash_refresh_token(token, secret):
     return hashlib.sha256(f"{secret}:{token}".encode("utf-8")).hexdigest()
 
 
-def send_code_email(email, code, brevo_config):
+def send_code_email(email, code, brevo_config, purpose="login"):
     api_key = brevo_config.get("api_key", "")
     sender_email = brevo_config.get("sender_email", "")
     sender_name = brevo_config.get("sender_name", "SmartHireTime")
@@ -94,12 +94,14 @@ def send_code_email(email, code, brevo_config):
         print(f"Auth code for {email}: {code}")
         return
 
+    is_recovery = purpose == "recovery"
+    code_label = "password reset" if is_recovery else "sign-in"
     body = {
         "sender": {"email": sender_email, "name": sender_name},
         "to": [{"email": email}],
-        "subject": "Your SmartHireTime sign-in code",
+        "subject": f"Your SmartHireTime {code_label} code",
         "textContent": (
-            "Your SmartHireTime verification code is:\n\n"
+            f"Your SmartHireTime {code_label} code is:\n\n"
             f"{code}\n\n"
             "This code expires soon. If you did not request this, you can ignore this email."
         ),
