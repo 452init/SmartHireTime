@@ -219,6 +219,36 @@ def clear_user_profile_image(database_url, user_id):
     return _user_row_to_dict(row)
 
 
+def delete_user_account(database_url, user_id):
+    if not database_url:
+        raise MissingDatabaseUrlError(
+            "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
+        )
+
+    with psycopg.connect(database_url) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT profile_image_public_id
+                FROM users
+                WHERE id = %s;
+                """,
+                (user_id,),
+            )
+            row = cursor.fetchone()
+            profile_image_public_id = row[0] if row else None
+
+            cursor.execute(
+                """
+                DELETE FROM users
+                WHERE id = %s;
+                """,
+                (user_id,),
+            )
+
+    return profile_image_public_id
+
+
 def update_user_password_hash(database_url, user_id, password_hash):
     if not database_url:
         raise MissingDatabaseUrlError(
