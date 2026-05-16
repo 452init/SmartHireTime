@@ -57,12 +57,13 @@ def hash_code(code, secret):
     return hashlib.sha256(f"{secret}:{code}".encode("utf-8")).hexdigest()
 
 
-def create_access_token(secret, user_id, ttl_seconds):
+def create_access_token(secret, user_id, ttl_seconds, purpose="login"):
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(seconds=ttl_seconds)).timestamp()),
+        "purpose": purpose,
     }
     return jwt.encode(payload, secret, algorithm="HS256")
 

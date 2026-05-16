@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SmartHireTime | The Boardroom</title>
+    <title>SmartHireTime</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,7 +19,7 @@
         <div class="topbar-brand">
           <p class="eyebrow">Be Confident In Your Career</p>
           <div class="brand-row">
-            <h1>The Boardroom</h1>
+            <h1>Be Prepared and Get Hired</h1>
             <div class="brand-mark" aria-hidden="true">
               <span></span>
             </div>
@@ -98,7 +98,7 @@
               />
             </div>
 
-            <div class="field-group">
+            <div id="auth-password-field" class="field-group">
               <label for="auth-password">Password</label>
               <input
                 id="auth-password"
@@ -114,6 +114,10 @@
             <!-- Toggle between sign-in and sign-up modes -->
             <button id="auth-mode-toggle" class="auth-toggle" type="button">
               New here? Create account
+            </button>
+
+            <button id="forgot-password-button" class="auth-toggle auth-link" type="button">
+              Forgot password?
             </button>
 
             <div class="action-row">
@@ -206,7 +210,7 @@
             <section class="dashboard-card">
               <h3>Change password</h3>
               <form id="password-form" class="auth-form">
-                <div class="field-group">
+                <div id="current-password-field" class="field-group">
                   <label for="current-password">Current password</label>
                   <input
                     id="current-password"

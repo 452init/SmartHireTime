@@ -48,18 +48,21 @@ def initialize_database(database_url):
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     sent_to TEXT NOT NULL,
+                    purpose TEXT NOT NULL DEFAULT 'login',
                     code_hash TEXT NOT NULL,
                     expires_at TIMESTAMPTZ NOT NULL,
                     consumed_at TIMESTAMPTZ
                 );
                 """
             )
+            cursor.execute("ALTER TABLE auth_codes ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'login';")
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS refresh_tokens (
                     id SERIAL PRIMARY KEY,
                     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                     token_hash TEXT UNIQUE NOT NULL,
+                    purpose TEXT NOT NULL DEFAULT 'login',
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                     expires_at TIMESTAMPTZ NOT NULL,
                     revoked_at TIMESTAMPTZ,
@@ -67,6 +70,7 @@ def initialize_database(database_url):
                 );
                 """
             )
+            cursor.execute("ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS purpose TEXT NOT NULL DEFAULT 'login';")
 
 
 def save_question_set(database_url, job_title, questions):
@@ -271,7 +275,7 @@ def update_user_password_hash(database_url, user_id, password_hash):
     return _user_row_to_dict(row)
 
 
-def create_auth_code(database_url, user_id, sent_to, code_hash, expires_at):
+def create_auth_code(database_url, user_id, sent_to, code_hash, expires_at, purpose="login"):
     if not database_url:
         raise MissingDatabaseUrlError(
             "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
@@ -281,11 +285,11 @@ def create_auth_code(database_url, user_id, sent_to, code_hash, expires_at):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO auth_codes (user_id, sent_to, code_hash, expires_at)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO auth_codes (user_id, sent_to, purpose, code_hash, expires_at)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING id;
                 """,
-                (user_id, sent_to, code_hash, expires_at),
+                (user_id, sent_to, purpose, code_hash, expires_at),
             )
             row = cursor.fetchone()
 
@@ -314,16 +318,19 @@ def consume_auth_code(database_url, user_id, code_hash, now):
                     ORDER BY id DESC
                     LIMIT 1
                 )
-                RETURNING id;
+                RETURNING id, purpose;
                 """,
                 (now, user_id, code_hash, now),
             )
             row = cursor.fetchone()
 
-    return row is not None
+    if not row:
+        return None
+
+    return {"id": row[0], "purpose": row[1]}
 
 
-def create_refresh_token(database_url, user_id, token_hash, expires_at):
+def create_refresh_token(database_url, user_id, token_hash, expires_at, purpose="login"):
     if not database_url:
         raise MissingDatabaseUrlError(
             "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
@@ -333,11 +340,11 @@ def create_refresh_token(database_url, user_id, token_hash, expires_at):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-                VALUES (%s, %s, %s)
+                INSERT INTO refresh_tokens (user_id, token_hash, purpose, expires_at)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id;
                 """,
-                (user_id, token_hash, expires_at),
+                (user_id, token_hash, purpose, expires_at),
             )
             row = cursor.fetchone()
 
@@ -354,7 +361,7 @@ def get_refresh_token_by_hash(database_url, token_hash):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, user_id, expires_at, revoked_at
+                SELECT id, user_id, expires_at, revoked_at, purpose
                 FROM refresh_tokens
                 WHERE token_hash = %s;
                 """,
@@ -370,6 +377,7 @@ def get_refresh_token_by_hash(database_url, token_hash):
         "user_id": row[1],
         "expires_at": row[2],
         "revoked_at": row[3],
+        "purpose": row[4],
     }
 
 

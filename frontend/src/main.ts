@@ -27,6 +27,7 @@ type AuthUser = {
 type AuthSession = {
   token: string;
   user: AuthUser;
+  sessionPurpose: "login" | "recovery";
 };
 
 type AuthStartResponse = {
@@ -41,9 +42,12 @@ type AuthVerifyResponse = {
   user: AuthUser;
   tokenType: "Bearer";
   expiresInSeconds: number;
+  sessionPurpose: "login" | "recovery";
 };
 
 type AuthRefreshResponse = AuthVerifyResponse;
+
+type AuthMode = "signin" | "signup" | "recover";
 
 type FocusProfile = {
   keywords: string[];
@@ -421,9 +425,11 @@ let selectedCategory = focusAreas[0];
 
 let authSession: AuthSession | null = null;
 let pendingEmail = "";
+let pendingAuthPurpose: "login" | "recovery" = "login";
 let pendingGenerate = false;        // tracks whether user tried to generate before auth
-let isRegistering = false;
+let authMode: AuthMode = "signin";
 let isAuthLoading = false;
+let isRecoverySession = false;
 let postAuthView: "app" | "dashboard" = "app";
 let selectedPhotoFile: File | null = null;
 
@@ -440,12 +446,14 @@ const authStartPanel = getElement<HTMLElement>("#auth-start");
 const authTitle = getElement<HTMLHeadingElement>("#auth-title");
 const authForm = getElement<HTMLFormElement>("#auth-form");
 const authNameFields = getElement<HTMLElement>("#auth-name-fields");
+const authPasswordField = getElement<HTMLElement>("#auth-password-field");
 const firstNameInput = getElement<HTMLInputElement>("#first-name");
 const lastNameInput = getElement<HTMLInputElement>("#last-name");
 const authEmailInput = getElement<HTMLInputElement>("#auth-email");
 const authPasswordInput = getElement<HTMLInputElement>("#auth-password");
 const authSubmitButton = getElement<HTMLButtonElement>("#auth-submit");
 const authModeToggle = getElement<HTMLButtonElement>("#auth-mode-toggle");
+const forgotPasswordButton = getElement<HTMLButtonElement>("#forgot-password-button");
 const authStatus = getElement<HTMLDivElement>("#auth-status");
 const googleButton = getElement<HTMLDivElement>("#google-button");
 
@@ -467,10 +475,12 @@ const profilePhotoPreview = getElement<HTMLImageElement>("#profile-photo-preview
 const profilePhotoPlaceholder = getElement<HTMLElement>("#profile-photo-placeholder");
 const profilePhotoStatus = getElement<HTMLDivElement>("#profile-photo-status");
 const passwordForm = getElement<HTMLFormElement>("#password-form");
+const currentPasswordField = getElement<HTMLElement>("#current-password-field");
 const currentPasswordInput = getElement<HTMLInputElement>("#current-password");
 const newPasswordInput = getElement<HTMLInputElement>("#new-password");
 const confirmPasswordInput = getElement<HTMLInputElement>("#confirm-password");
 const passwordStatus = getElement<HTMLDivElement>("#password-status");
+const passwordSubmitButton = getElement<HTMLButtonElement>("#password-submit");
 const deleteAccountButton = getElement<HTMLButtonElement>("#delete-account-button");
 const deleteStatus = getElement<HTMLDivElement>("#delete-status");
 const appPanel = getElement<HTMLElement>("#app-panel");
@@ -489,7 +499,8 @@ const categoryOptions = getElement<HTMLDivElement>("#category-options");
 
 refreshOptionGroups();
 updateGenerateButton();
-setAuthMode(false);
+setAuthMode("signin");
+updatePasswordFormMode();
 
 // ─── Event Listeners ──────────────────────────────────────────────────────────
 
@@ -505,7 +516,17 @@ authTrigger.addEventListener("click", () => {
 });
 
 authModeToggle.addEventListener("click", () => {
-  setAuthMode(!isRegistering);
+  if (authMode === "recover") {
+    setAuthMode("signin");
+    return;
+  }
+
+  setAuthMode(authMode === "signup" ? "signin" : "signup");
+});
+
+forgotPasswordButton.addEventListener("click", () => {
+  setAuthMode("recover");
+  openAuthPanel("Enter your email and we’ll send a login code.", true);
 });
 
 logoutButton.addEventListener("click", () => {
@@ -544,9 +565,16 @@ authForm.addEventListener("submit", async (event) => {
   const email = authEmailInput.value.trim();
   const password = authPasswordInput.value;
 
-  if (!email || !password || (isRegistering && (!firstName || !lastName))) {
+  if (!email) {
+    setAuthStatus("Enter your email address.", "error");
+    return;
+  }
+
+  if (authMode === "recover") {
+    // Recovery only needs an existing email address.
+  } else if (!password || (authMode === "signup" && (!firstName || !lastName))) {
     setAuthStatus(
-      isRegistering ? "Complete all fields to continue." : "Enter your email and password.",
+      authMode === "signup" ? "Complete all fields to continue." : "Enter your email and password.",
       "error"
     );
     return;
@@ -555,12 +583,13 @@ authForm.addEventListener("submit", async (event) => {
   setAuthLoading(true);
 
   try {
-    const response = await fetch(getApiUrl("/api/auth/start"), {
+    const endpoint = authMode === "recover" ? "/api/auth/forgot-password" : "/api/auth/start";
+    const response = await fetch(getApiUrl(endpoint), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        mode: isRegistering ? "signup" : "signin",
+        mode: authMode,
         firstName,
         lastName,
         email,
@@ -572,19 +601,20 @@ authForm.addEventListener("submit", async (event) => {
 
     if (!response.ok || "error" in data) {
       // No account found during sign-in → switch to sign-up form automatically
-      if (response.status === 404 && !isRegistering) {
-        setAuthMode(true);
+      if (response.status === 404 && authMode === "signin") {
+        setAuthMode("signup");
       }
       // Account already exists during sign-up → switch to sign-in form automatically
-      if (response.status === 409 && isRegistering) {
-        setAuthMode(false);
+      if (response.status === 409 && authMode === "signup") {
+        setAuthMode("signin");
       }
       throw new Error("error" in data ? data.error : "Unable to start sign-in.");
     }
 
     pendingEmail = data.email;
     authPasswordInput.value = "";
-    showCodePanel(data.maskedEmail);
+    pendingAuthPurpose = authMode === "recover" ? "recovery" : "login";
+    showCodePanel(data.maskedEmail, pendingAuthPurpose);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to start sign-in.";
     setAuthStatus(message, "error");
@@ -627,7 +657,7 @@ codeForm.addEventListener("submit", async (event) => {
     }
 
     // Apply session — this internally calls closeAuthPanel() and shows the right panel.
-    applyAuthSession({ token: data.token, user: data.user });
+    applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
     codeInput.value = "";
 
     // If the user was trying to generate before auth, resume that now.
@@ -652,7 +682,8 @@ codeResendButton.addEventListener("click", async () => {
   setCodeStatus("Sending a new code...", "idle");
 
   try {
-    const response = await fetch(getApiUrl("/api/auth/request-code"), {
+    const endpoint = pendingAuthPurpose === "recovery" ? "/api/auth/forgot-password" : "/api/auth/request-code";
+    const response = await fetch(getApiUrl(endpoint), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -664,7 +695,7 @@ codeResendButton.addEventListener("click", async () => {
       throw new Error("error" in data ? data.error : "Unable to resend code.");
     }
 
-    showCodePanel(data.maskedEmail);
+    showCodePanel(data.maskedEmail, pendingAuthPurpose);
     setCodeStatus("Code sent. Check your inbox.", "success");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to resend code.";
@@ -675,7 +706,7 @@ codeResendButton.addEventListener("click", async () => {
 codeBackButton.addEventListener("click", () => {
   pendingEmail = "";
   codeInput.value = "";
-  openAuthPanel();
+  openAuthPanel(undefined, true);
 });
 
 window.addEventListener("load", () => {
@@ -924,7 +955,7 @@ async function refreshSession() {
     });
     if (!response.ok) return false;
     const data = (await response.json()) as AuthRefreshResponse;
-    applyAuthSession({ token: data.token, user: data.user });
+    applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
     return true;
   } catch {
     return false;
@@ -950,11 +981,16 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
 
 function applyAuthSession(session: AuthSession) {
   authSession = session;
+  isRecoverySession = session.sessionPurpose === "recovery";
   pendingEmail = session.user.email;
   authSessionEmail.textContent = `Signed in as ${session.user.email}`;
   authSessionPanel.hidden = true;
   updateAuthTrigger();
   updateDashboardView();
+  updatePasswordFormMode();
+  if (isRecoverySession) {
+    postAuthView = "dashboard";
+  }
   closeAuthPanel();
 }
 
@@ -962,10 +998,13 @@ function clearAuthSession() {
   authSession = null;
   pendingEmail = "";
   pendingGenerate = false;
+  pendingAuthPurpose = "login";
+  isRecoverySession = false;
   authSessionEmail.textContent = "Signed in.";
   authSessionPanel.hidden = true;
   dashboardPanel.hidden = true;
   updateAuthTrigger();
+  updatePasswordFormMode();
 }
 
 function updateAuthTrigger() {
@@ -981,7 +1020,7 @@ function updateAuthTrigger() {
 
 // ─── Auth Panel (overlay modal) ───────────────────────────────────────────────
 
-function openAuthPanel(message?: string) {
+function openAuthPanel(message?: string, keepCurrentMode = false) {
   authPanel.hidden = false;
   document.body.classList.add("auth-open");
   topbar.hidden = true;
@@ -997,15 +1036,21 @@ function openAuthPanel(message?: string) {
     return;
   }
 
-  setAuthMode(false);
+  if (!keepCurrentMode) {
+    setAuthMode("signin");
+  }
   authSessionPanel.hidden = true;
   authStartPanel.hidden = false;
   codePanel.hidden = true;
   setAuthStatus(message || "", message ? "error" : "idle");
-  firstNameInput.focus();
+  if (authMode === "signup") {
+    firstNameInput.focus();
+  } else {
+    authEmailInput.focus();
+  }
 }
 
-function showCodePanel(maskedEmail: string) {
+function showCodePanel(maskedEmail: string, purpose: "login" | "recovery" = "login") {
   authPanel.hidden = false;
   document.body.classList.add("auth-open");
   topbar.hidden = true;
@@ -1014,6 +1059,7 @@ function showCodePanel(maskedEmail: string) {
   authSessionPanel.hidden = true;
   authStartPanel.hidden = true;
   codePanel.hidden = false;
+  pendingAuthPurpose = purpose;
   codeEmail.textContent = maskedEmail || pendingEmail;
   setCodeStatus("", "idle");
   codeInput.focus();
@@ -1039,6 +1085,12 @@ function closeAuthPanel() {
   postAuthView = "app";
 }
 
+function updatePasswordFormMode() {
+  currentPasswordField.hidden = isRecoverySession;
+  currentPasswordInput.required = !isRecoverySession;
+  passwordSubmitButton.textContent = isRecoverySession ? "Set new password" : "Update password";
+}
+
 function setAuthStatus(message: string, type: "idle" | "success" | "error") {
   authStatus.textContent = message;
   authStatus.dataset.type = type;
@@ -1060,26 +1112,42 @@ function setCodeLoading(isLoading: boolean) {
   codeSubmitButton.textContent = isLoading ? "Verifying..." : "Verify";
 }
 
-function setAuthMode(registering: boolean) {
-  isRegistering = registering;
-  authNameFields.hidden = !registering;
-  firstNameInput.required = registering;
-  lastNameInput.required = registering;
-  authTitle.textContent = registering ? "Create your account" : "Sign in to continue";
-  authModeToggle.textContent = registering
-    ? "Already have an account? Sign in"
-    : "New here? Create account";
+function setAuthMode(mode: AuthMode) {
+  authMode = mode;
+  authNameFields.hidden = mode !== "signup";
+  authPasswordField.hidden = mode === "recover";
+  firstNameInput.required = mode === "signup";
+  lastNameInput.required = mode === "signup";
+  authPasswordInput.required = mode !== "recover";
+  authTitle.textContent =
+    mode === "signup"
+      ? "Create your account"
+      : mode === "recover"
+        ? "Recover your account"
+        : "Sign in to continue";
+  authModeToggle.textContent =
+    mode === "signup"
+      ? "Already have an account? Sign in"
+      : mode === "recover"
+        ? "Back to sign in"
+        : "New here? Create account";
+  forgotPasswordButton.hidden = mode !== "signin";
   if (!isAuthLoading) {
     authSubmitButton.textContent = getAuthSubmitText();
   }
-  if (!registering) {
+  if (mode !== "signup") {
     firstNameInput.value = "";
     lastNameInput.value = "";
+  }
+  if (mode !== "recover") {
+    pendingAuthPurpose = "login";
   }
 }
 
 function getAuthSubmitText() {
-  return isRegistering ? "Create account" : "Sign in";
+  if (authMode === "signup") return "Create account";
+  if (authMode === "recover") return "Send code";
+  return "Sign in";
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -1117,6 +1185,8 @@ function updateDashboardView() {
     profilePhotoPreview.hidden = true;
     profilePhotoPlaceholder.hidden = false;
   }
+
+  updatePasswordFormMode();
 }
 
 function setProfilePhotoPreview(file: File | null) {
@@ -1187,7 +1257,7 @@ async function handlePasswordChange() {
   const newPassword = newPasswordInput.value;
   const confirmPassword = confirmPasswordInput.value;
 
-  if (!currentPassword || !newPassword || !confirmPassword) {
+  if (!newPassword || !confirmPassword || (!isRecoverySession && !currentPassword)) {
     setPanelStatus(passwordStatus, "Complete all password fields.", "error");
     return;
   }
@@ -1206,7 +1276,7 @@ async function handlePasswordChange() {
     const response = await fetchWithAuth(getApiUrl("/api/account/password"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword })
+      body: JSON.stringify(isRecoverySession ? { newPassword } : { currentPassword, newPassword })
     });
 
     const data = (await response.json()) as { status?: string } | ErrorResponse;
@@ -1319,7 +1389,7 @@ async function handleGoogleCredential(response: { credential: string }) {
     }
 
     pendingEmail = data.email;
-    showCodePanel(data.maskedEmail);
+    showCodePanel(data.maskedEmail, "login");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google sign-in failed.";
     setAuthStatus(message, "error");

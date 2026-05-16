@@ -223,6 +223,7 @@ def root():
 def auth_start():
     try:
         payload = request.get_json(silent=True) or {}
+        mode = str(payload.get("mode", "signin")).strip().lower()
         first_name = str(payload.get("firstName", "")).strip()
         last_name = str(payload.get("lastName", "")).strip()
         email = normalize_email(str(payload.get("email", "")))
@@ -230,7 +231,11 @@ def auth_start():
 
         if not email or not AUTH_EMAIL_PATTERN.match(email):
             return jsonify({"error": "Please provide a valid email address."}), 400
-        if len(password) < 8:
+        if mode not in {"signin", "signup"}:
+            return jsonify({"error": "Unsupported authentication mode."}), 400
+        if mode == "signin" and len(password) < 8:
+            return jsonify({"error": "Password must be at least 8 characters."}), 400
+        if mode == "signup" and len(password) < 8:
             return jsonify({"error": "Password must be at least 8 characters."}), 400
 
         user = get_user_by_email(CONFIG["database_url"], email)
@@ -240,9 +245,13 @@ def auth_start():
                     jsonify({"error": "This account uses Google sign-in. Continue with Google."}),
                     400,
                 )
+            if mode == "signup":
+                return jsonify({"error": "An account already exists for that email."}), 409
             if not verify_password(password, user["password_hash"]):
                 return jsonify({"error": "Invalid email or password."}), 401
         else:
+            if mode == "signin":
+                return jsonify({"error": "No account found for that email."}), 404
             if not first_name or not last_name:
                 return jsonify({"error": "Please add your first and last name to create an account."}), 400
             user = create_user(
@@ -253,7 +262,7 @@ def auth_start():
                 password_hash=hash_password(password),
             )
 
-        issue_auth_code(user, email)
+        issue_auth_code(user, email, purpose="login")
         return jsonify(
             {
                 "status": "code_sent",
@@ -340,7 +349,7 @@ def auth_request_code():
         if not user:
             return jsonify({"error": "No account found for that email."}), 404
 
-        issue_auth_code(user, email)
+        issue_auth_code(user, email, purpose="login")
         return jsonify(
             {
                 "status": "code_sent",
@@ -381,14 +390,52 @@ def auth_verify():
         refresh_token = generate_refresh_token()
         token_hash = hash_refresh_token(refresh_token, AUTH_SECRET)
         expires_at = now + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS)
-        create_refresh_token(CONFIG["database_url"], user["id"], token_hash, expires_at)
+        session_purpose = consumed["purpose"] or "login"
+        create_refresh_token(
+            CONFIG["database_url"],
+            user["id"],
+            token_hash,
+            expires_at,
+            purpose=session_purpose,
+        )
 
-        return create_session_response(user, refresh_token)
+        return create_session_response(user, refresh_token, session_purpose)
     except MissingDatabaseUrlError as exc:
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
         print(exc)
         return jsonify({"error": "Unable to verify the code."}), 500
+
+
+@app.post("/api/auth/forgot-password")
+def auth_forgot_password():
+    try:
+        payload = request.get_json(silent=True) or {}
+        email = normalize_email(str(payload.get("email", "")))
+
+        if not email or not AUTH_EMAIL_PATTERN.match(email):
+            return jsonify({"error": "Please provide a valid email address."}), 400
+
+        user = get_user_by_email(CONFIG["database_url"], email)
+        if not user:
+            return jsonify({"error": "No account found for that email."}), 404
+        if not user.get("password_hash"):
+            return jsonify({"error": "This account uses Google sign-in. Continue with Google."}), 400
+
+        issue_auth_code(user, email, purpose="recovery")
+        return jsonify(
+            {
+                "status": "code_sent",
+                "email": email,
+                "maskedEmail": mask_email(email),
+                "expiresInMinutes": AUTH_CODE_TTL_MINUTES,
+            }
+        )
+    except MissingDatabaseUrlError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except Exception as exc:
+        print(exc)
+        return jsonify({"error": "Unable to send password reset code."}), 500
 
 
 @app.post("/api/auth/refresh")
@@ -416,10 +463,17 @@ def auth_refresh():
         new_refresh_token = generate_refresh_token()
         new_hash = hash_refresh_token(new_refresh_token, AUTH_SECRET)
         expires_at = now + timedelta(seconds=REFRESH_TOKEN_TTL_SECONDS)
-        new_id = create_refresh_token(CONFIG["database_url"], user["id"], new_hash, expires_at)
+        session_purpose = record.get("purpose") or "login"
+        new_id = create_refresh_token(
+            CONFIG["database_url"],
+            user["id"],
+            new_hash,
+            expires_at,
+            purpose=session_purpose,
+        )
         revoke_refresh_token(CONFIG["database_url"], record["id"], now, replaced_by=new_id)
 
-        return create_session_response(user, new_refresh_token)
+        return create_session_response(user, new_refresh_token, session_purpose)
     except MissingDatabaseUrlError as exc:
         return jsonify({"error": str(exc)}), 500
     except Exception as exc:
@@ -461,12 +515,12 @@ def auth_me():
 @app.post("/api/account/password")
 def account_password_update():
     try:
-        user = require_authenticated_user()
+        user, session = require_authenticated_session()
         payload = request.get_json(silent=True) or {}
         current_password = str(payload.get("currentPassword", ""))
         new_password = str(payload.get("newPassword", ""))
 
-        if not current_password or not new_password:
+        if not new_password:
             return jsonify({"error": "Complete all password fields."}), 400
         if len(new_password) < 8:
             return jsonify({"error": "New password must be at least 8 characters."}), 400
@@ -477,8 +531,11 @@ def account_password_update():
                 jsonify({"error": "This account uses Google sign-in. Password updates are unavailable."}),
                 400,
             )
-        if not verify_password(current_password, existing_hash):
-            return jsonify({"error": "Current password is incorrect."}), 401
+        if session.get("purpose") != "recovery":
+            if not current_password:
+                return jsonify({"error": "Complete all password fields."}), 400
+            if not verify_password(current_password, existing_hash):
+                return jsonify({"error": "Current password is incorrect."}), 401
 
         update_user_password_hash(
             CONFIG["database_url"],
@@ -630,6 +687,11 @@ def main():
 
 
 def require_authenticated_user():
+    user, _session = require_authenticated_session()
+    return user
+
+
+def require_authenticated_session():
     token = get_bearer_token()
     if not token:
         raise AuthTokenError("Authentication required.")
@@ -647,7 +709,7 @@ def require_authenticated_user():
     if not user:
         raise AuthTokenError("User not found.")
 
-    return user
+    return user, payload
 
 
 def get_bearer_token():
@@ -657,21 +719,29 @@ def get_bearer_token():
     return auth_header.replace("Bearer ", "", 1).strip()
 
 
-def issue_auth_code(user, email):
+def issue_auth_code(user, email, purpose="login"):
     code = generate_code()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=AUTH_CODE_TTL_MINUTES)
-    create_auth_code(CONFIG["database_url"], user["id"], email, hash_code(code, AUTH_SECRET), expires_at)
+    create_auth_code(
+        CONFIG["database_url"],
+        user["id"],
+        email,
+        hash_code(code, AUTH_SECRET),
+        expires_at,
+        purpose=purpose,
+    )
     send_code_email(email, code, BREVO_CONFIG)
 
 
-def create_session_response(user, refresh_token):
-    access_token = create_access_token(AUTH_SECRET, user["id"], ACCESS_TOKEN_TTL_SECONDS)
+def create_session_response(user, refresh_token, session_purpose="login"):
+    access_token = create_access_token(AUTH_SECRET, user["id"], ACCESS_TOKEN_TTL_SECONDS, session_purpose)
     response = jsonify(
         {
             "token": access_token,
             "user": to_public_user(user),
             "tokenType": "Bearer",
             "expiresInSeconds": ACCESS_TOKEN_TTL_SECONDS,
+            "sessionPurpose": session_purpose,
         }
     )
     set_refresh_cookie(response, refresh_token)
