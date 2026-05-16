@@ -34,6 +34,7 @@ from database import (
     revoke_refresh_token,
     save_question_set,
     set_user_google_sub,
+    update_user_password_hash,
     update_user_profile_image,
 )
 from flask import Flask, jsonify, request
@@ -119,6 +120,10 @@ AUTH_CODE_TTL_MINUTES = max(CONFIG["auth_code_ttl_minutes"], 1)
 REFRESH_TOKEN_TTL_SECONDS = max(CONFIG["refresh_token_ttl_days"], 1) * 24 * 60 * 60
 COOKIE_SECURE = CONFIG["cookie_secure"]
 COOKIE_SAMESITE = normalize_samesite(CONFIG["cookie_samesite"])
+if COOKIE_SECURE and COOKIE_SAMESITE == "Lax":
+    COOKIE_SAMESITE = "None"
+if not COOKIE_SECURE and COOKIE_SAMESITE == "None":
+    COOKIE_SAMESITE = "Lax"
 COOKIE_DOMAIN = CONFIG["cookie_domain"] or None
 BREVO_CONFIG = {
     "api_key": CONFIG["brevo_api_key"],
@@ -447,6 +452,43 @@ def auth_me():
         return jsonify({"error": str(exc)}), exc.status
     except MissingDatabaseUrlError as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.post("/api/account/password")
+def account_password_update():
+    try:
+        user = require_authenticated_user()
+        payload = request.get_json(silent=True) or {}
+        current_password = str(payload.get("currentPassword", ""))
+        new_password = str(payload.get("newPassword", ""))
+
+        if not current_password or not new_password:
+            return jsonify({"error": "Complete all password fields."}), 400
+        if len(new_password) < 8:
+            return jsonify({"error": "New password must be at least 8 characters."}), 400
+
+        existing_hash = user.get("password_hash")
+        if not existing_hash:
+            return (
+                jsonify({"error": "This account uses Google sign-in. Password updates are unavailable."}),
+                400,
+            )
+        if not verify_password(current_password, existing_hash):
+            return jsonify({"error": "Current password is incorrect."}), 401
+
+        update_user_password_hash(
+            CONFIG["database_url"],
+            user["id"],
+            hash_password(new_password),
+        )
+        return jsonify({"status": "updated"})
+    except AuthTokenError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    except MissingDatabaseUrlError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except Exception as exc:
+        print(exc)
+        return jsonify({"error": "Unable to update password."}), 500
 
 
 @app.post("/api/account/photo")

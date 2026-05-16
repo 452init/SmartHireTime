@@ -937,7 +937,7 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
     headers.set("Authorization", `Bearer ${authSession.token}`);
   }
 
-  const response = await fetch(input, { ...init, headers });
+  const response = await fetch(input, { ...init, headers, credentials: "include" });
   if (response.status !== 401) return response;
 
   const refreshed = await refreshSession();
@@ -945,7 +945,7 @@ async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
 
   const retryHeaders = new Headers(init.headers ?? {});
   retryHeaders.set("Authorization", `Bearer ${authSession.token}`);
-  return fetch(input, { ...init, headers: retryHeaders });
+  return fetch(input, { ...init, headers: retryHeaders, credentials: "include" });
 }
 
 function applyAuthSession(session: AuthSession) {

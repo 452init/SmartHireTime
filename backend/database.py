@@ -219,6 +219,28 @@ def clear_user_profile_image(database_url, user_id):
     return _user_row_to_dict(row)
 
 
+def update_user_password_hash(database_url, user_id, password_hash):
+    if not database_url:
+        raise MissingDatabaseUrlError(
+            "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
+        )
+
+    with psycopg.connect(database_url) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET password_hash = %s
+                WHERE id = %s
+                RETURNING id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id;
+                """,
+                (password_hash, user_id),
+            )
+            row = cursor.fetchone()
+
+    return _user_row_to_dict(row)
+
+
 def create_auth_code(database_url, user_id, sent_to, code_hash, expires_at):
     if not database_url:
         raise MissingDatabaseUrlError(
