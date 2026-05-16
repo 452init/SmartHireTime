@@ -34,10 +34,14 @@ def initialize_database(database_url):
                     last_name TEXT NOT NULL,
                     password_hash TEXT,
                     google_sub TEXT,
+                    profile_image_url TEXT,
+                    profile_image_public_id TEXT,
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
                 """
             )
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_url TEXT;")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image_public_id TEXT;")
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS auth_codes (
@@ -96,7 +100,7 @@ def get_user_by_email(database_url, email):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, email, first_name, last_name, password_hash, google_sub
+                SELECT id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id
                 FROM users
                 WHERE email = %s;
                 """,
@@ -117,7 +121,7 @@ def get_user_by_id(database_url, user_id):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, email, first_name, last_name, password_hash, google_sub
+                SELECT id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id
                 FROM users
                 WHERE id = %s;
                 """,
@@ -140,7 +144,7 @@ def create_user(database_url, first_name, last_name, email, password_hash=None, 
                 """
                 INSERT INTO users (email, first_name, last_name, password_hash, google_sub)
                 VALUES (%s, %s, %s, %s, %s)
-                RETURNING id, email, first_name, last_name, password_hash, google_sub;
+                RETURNING id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id;
                 """,
                 (email, first_name, last_name, password_hash, google_sub),
             )
@@ -162,9 +166,53 @@ def set_user_google_sub(database_url, user_id, google_sub):
                 UPDATE users
                 SET google_sub = %s
                 WHERE id = %s
-                RETURNING id, email, first_name, last_name, password_hash, google_sub;
+                RETURNING id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id;
                 """,
                 (google_sub, user_id),
+            )
+            row = cursor.fetchone()
+
+    return _user_row_to_dict(row)
+
+
+def update_user_profile_image(database_url, user_id, image_url, image_public_id):
+    if not database_url:
+        raise MissingDatabaseUrlError(
+            "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
+        )
+
+    with psycopg.connect(database_url) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET profile_image_url = %s, profile_image_public_id = %s
+                WHERE id = %s
+                RETURNING id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id;
+                """,
+                (image_url, image_public_id, user_id),
+            )
+            row = cursor.fetchone()
+
+    return _user_row_to_dict(row)
+
+
+def clear_user_profile_image(database_url, user_id):
+    if not database_url:
+        raise MissingDatabaseUrlError(
+            "Missing DATABASE_URL. Add a PostgreSQL connection string to your .env file."
+        )
+
+    with psycopg.connect(database_url) as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE users
+                SET profile_image_url = NULL, profile_image_public_id = NULL
+                WHERE id = %s
+                RETURNING id, email, first_name, last_name, password_hash, google_sub, profile_image_url, profile_image_public_id;
+                """,
+                (user_id,),
             )
             row = cursor.fetchone()
 
@@ -302,4 +350,6 @@ def _user_row_to_dict(row):
         "last_name": row[3],
         "password_hash": row[4],
         "google_sub": row[5],
+        "profile_image_url": row[6],
+        "profile_image_public_id": row[7],
     }

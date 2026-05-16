@@ -52,8 +52,6 @@ type FocusProfile = {
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
 const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
-const cloudinaryCloudName = (import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "").trim();
-const cloudinaryUploadPreset = (import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "").trim();
 const levels = ["Junior", "Mid-Level", "Senior", "Executive"];
 const defaultFocusAreas = [
   "Role-Specific Judgment",
@@ -1152,19 +1150,15 @@ async function handlePhotoUpload() {
     return;
   }
 
-  if (!cloudinaryCloudName || !cloudinaryUploadPreset) {
-    setPanelStatus(profilePhotoStatus, "Cloudinary is not configured.", "error");
-    return;
-  }
-
   setPanelStatus(profilePhotoStatus, "Uploading...", "idle");
 
   try {
-    const imageUrl = await uploadToCloudinary(selectedPhotoFile);
+    const formData = new FormData();
+    formData.append("file", selectedPhotoFile);
+
     const response = await fetchWithAuth(getApiUrl("/api/account/photo"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl })
+      body: formData
     });
 
     const data = (await response.json()) as { user: AuthUser } | ErrorResponse;
@@ -1180,24 +1174,6 @@ async function handlePhotoUpload() {
     const message = error instanceof Error ? error.message : "Unable to update photo.";
     setPanelStatus(profilePhotoStatus, message, "error");
   }
-}
-
-async function uploadToCloudinary(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", cloudinaryUploadPreset);
-
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`,
-    { method: "POST", body: formData }
-  );
-
-  const data = (await response.json()) as { secure_url?: string; error?: { message?: string } };
-  if (!response.ok || !data.secure_url) {
-    throw new Error(data.error?.message || "Upload failed.");
-  }
-
-  return data.secure_url;
 }
 
 async function handlePasswordChange() {

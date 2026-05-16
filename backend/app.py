@@ -13,9 +13,16 @@ from auth import (
     verify_access_token,
     verify_password,
 )
+from cloudinary_api import (
+    CloudinaryConfigError,
+    CloudinaryRequestError,
+    delete_image,
+    upload_image,
+)
 from config import get_config
 from database import (
     MissingDatabaseUrlError,
+    clear_user_profile_image,
     consume_auth_code,
     create_auth_code,
     create_refresh_token,
@@ -27,6 +34,7 @@ from database import (
     revoke_refresh_token,
     save_question_set,
     set_user_google_sub,
+    update_user_profile_image,
 )
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -51,6 +59,8 @@ DEFAULT_FRONTEND_ORIGINS = [
 ]
 AUTH_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 REFRESH_COOKIE_NAME = "sht_refresh"
+MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024
+PROFILE_IMAGE_FOLDER = "smarthiretime/profile-photos"
 
 
 def normalize_frontend_origins(value):
@@ -114,6 +124,11 @@ BREVO_CONFIG = {
     "api_key": CONFIG["brevo_api_key"],
     "sender_email": CONFIG["brevo_sender_email"],
     "sender_name": CONFIG["brevo_sender_name"],
+}
+CLOUDINARY_CONFIG = {
+    "cloud_name": CONFIG["cloudinary_cloud_name"],
+    "api_key": CONFIG["cloudinary_api_key"],
+    "api_secret": CONFIG["cloudinary_api_secret"],
 }
 
 if not CONFIG["auth_secret"]:
@@ -434,6 +449,84 @@ def auth_me():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.post("/api/account/photo")
+def account_photo_upload():
+    try:
+        user = require_authenticated_user()
+        image_file = request.files.get("file")
+        if not image_file:
+            return jsonify({"error": "Choose a photo to upload."}), 400
+
+        content_type = (image_file.content_type or "").lower()
+        if not content_type.startswith("image/"):
+            return jsonify({"error": "Only image files are allowed."}), 400
+
+        image_bytes = image_file.read()
+        if not image_bytes:
+            return jsonify({"error": "Uploaded file is empty."}), 400
+        if len(image_bytes) > MAX_PROFILE_PHOTO_BYTES:
+            return jsonify({"error": "Image must be 5MB or smaller."}), 400
+
+        upload_result = upload_image(
+            file_bytes=image_bytes,
+            filename=image_file.filename or f"user-{user['id']}.jpg",
+            content_type=content_type,
+            folder=PROFILE_IMAGE_FOLDER,
+            config=CLOUDINARY_CONFIG,
+        )
+
+        previous_public_id = user.get("profile_image_public_id")
+        updated_user = update_user_profile_image(
+            CONFIG["database_url"],
+            user["id"],
+            upload_result["secure_url"],
+            upload_result["public_id"],
+        )
+
+        if previous_public_id and previous_public_id != upload_result["public_id"]:
+            try:
+                delete_image(previous_public_id, CLOUDINARY_CONFIG)
+            except CloudinaryRequestError as exc:
+                print(f"Unable to delete previous Cloudinary image: {exc}")
+
+        return jsonify({"user": to_public_user(updated_user)})
+    except AuthTokenError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    except MissingDatabaseUrlError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except CloudinaryConfigError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except CloudinaryRequestError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except Exception as exc:
+        print(exc)
+        return jsonify({"error": "Unable to update photo."}), 500
+
+
+@app.delete("/api/account/photo")
+def account_photo_delete():
+    try:
+        user = require_authenticated_user()
+        existing_public_id = user.get("profile_image_public_id")
+
+        if existing_public_id:
+            delete_image(existing_public_id, CLOUDINARY_CONFIG)
+
+        updated_user = clear_user_profile_image(CONFIG["database_url"], user["id"])
+        return jsonify({"user": to_public_user(updated_user)})
+    except AuthTokenError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    except MissingDatabaseUrlError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except CloudinaryConfigError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except CloudinaryRequestError as exc:
+        return jsonify({"error": str(exc)}), 502
+    except Exception as exc:
+        print(exc)
+        return jsonify({"error": "Unable to delete photo."}), 500
+
+
 def initialize_app():
     if CONFIG["database_url"]:
         log_database_host(CONFIG["database_url"])
@@ -548,6 +641,7 @@ def to_public_user(user):
         "email": user["email"],
         "firstName": user["first_name"],
         "lastName": user["last_name"],
+        "profileImageUrl": user.get("profile_image_url"),
     }
 
 

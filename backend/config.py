@@ -7,6 +7,9 @@ def get_config(env_path):
     return {
         "database_url": os.getenv("DATABASE_URL", ""),
         "tinyfish_api_key": os.getenv("TINYFISH_API_KEY", ""),
+        "cloudinary_cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME", ""),
+        "cloudinary_api_key": os.getenv("CLOUDINARY_API_KEY", ""),
+        "cloudinary_api_secret": os.getenv("CLOUDINARY_API_SECRET", ""),
         "frontend_origins": get_csv_env("FRONTEND_ORIGIN"),
         "auth_secret": os.getenv("AUTH_SECRET", ""),
         "auth_access_ttl_minutes": int(os.getenv("AUTH_ACCESS_TTL_MINUTES", "15")),
