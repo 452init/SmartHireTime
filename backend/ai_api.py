@@ -6,7 +6,7 @@ class MissingApiKeyError(Exception):
     pass
 
 
-def call_ai_api(prompt, api_key, question_count=8):
+def call_ai_api(prompt, api_key, question_count=3):
     if not api_key:
         raise MissingApiKeyError(
             "Missing TINYFISH_API_KEY. Add it to your .env file and restart the server."
