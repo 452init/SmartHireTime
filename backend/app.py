@@ -204,6 +204,9 @@ def create_interview_questions():
         )
     except (MissingApiKeyError, MissingDatabaseUrlError) as exc:
         return jsonify({"error": str(exc)}), 500
+    except RuntimeError as exc:
+        print(f"AI error: {exc}")
+        return jsonify({"error": str(exc)}), 502
     except AuthTokenError as exc:
         return jsonify({"error": str(exc)}), exc.status
     except Exception as exc:

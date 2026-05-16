@@ -65,11 +65,20 @@ def run_tinyfish_automation(body, api_key):
         with request.urlopen(api_request, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
     except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8")
+        try:
+            detail = exc.read().decode("utf-8")
+        except Exception:
+            detail = f"HTTP {exc.code} {exc.reason}"
+
+        print(f"TinyFish HTTPError: code={exc.code} detail={detail}")
 
         if exc.code == 403 and "output_schema" in detail:
             fallback_body = dict(body)
             fallback_body.pop("output_schema", None)
             return run_tinyfish_automation(fallback_body, api_key)
 
-        raise RuntimeError(f"AI API request failed: {detail}") from exc
+        raise RuntimeError(f"AI API request failed (HTTP {exc.code}): {detail}") from exc
+    except error.URLError as exc:
+        # Network-level errors (DNS, SSL, connection refused, etc.)
+        print(f"TinyFish URLError: {exc}")
+        raise RuntimeError(f"Unable to reach TinyFish API: {exc}") from exc
