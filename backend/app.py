@@ -23,6 +23,7 @@ from config import get_config
 from database import (
     MissingDatabaseUrlError,
     clear_user_profile_image,
+    delete_user_account,
     consume_auth_code,
     create_auth_code,
     create_refresh_token,
@@ -489,6 +490,34 @@ def account_password_update():
     except Exception as exc:
         print(exc)
         return jsonify({"error": "Unable to update password."}), 500
+
+
+@app.post("/api/account/delete")
+def account_delete():
+    try:
+        user = require_authenticated_user()
+        photo_public_id = user.get("profile_image_public_id")
+
+        if photo_public_id:
+            try:
+                delete_image(photo_public_id, CLOUDINARY_CONFIG)
+            except CloudinaryRequestError as exc:
+                print(f"Unable to delete Cloudinary profile photo: {exc}")
+
+        delete_user_account(CONFIG["database_url"], user["id"])
+
+        response = jsonify({"status": "deleted"})
+        clear_refresh_cookie(response)
+        return response
+    except AuthTokenError as exc:
+        return jsonify({"error": str(exc)}), exc.status
+    except MissingDatabaseUrlError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except CloudinaryConfigError as exc:
+        return jsonify({"error": str(exc)}), 500
+    except Exception as exc:
+        print(exc)
+        return jsonify({"error": "Unable to delete account."}), 500
 
 
 @app.post("/api/account/photo")
