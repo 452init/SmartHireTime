@@ -763,7 +763,7 @@ form.addEventListener("submit", async (event) => {
         level: selectedLevel,
         category: selectedCategory,
         focusAreas,
-        questionCount: 8
+        questionCount: 3
       })
     });
 

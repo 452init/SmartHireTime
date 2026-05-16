@@ -53,7 +53,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 CONFIG = get_config(ROOT_DIR / ".env")
 # Guardrails to limit prompt size, response latency, and API usage per request.
 MIN_QUESTION_COUNT = 1
-MAX_QUESTION_COUNT = 12
+MAX_QUESTION_COUNT = 3
 DEFAULT_FRONTEND_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
@@ -161,7 +161,7 @@ def create_interview_questions():
         level = str(payload.get("level", "Mid-Level")).strip() or "Mid-Level"
         category = str(payload.get("category", "Technical")).strip() or "Technical"
         try:
-            question_count = int(payload.get("questionCount", 8))
+            question_count = int(payload.get("questionCount", MAX_QUESTION_COUNT))
         except (TypeError, ValueError):
             return jsonify({"error": "questionCount must be a valid number."}), 400
 

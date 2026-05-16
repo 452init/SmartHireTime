@@ -2,7 +2,6 @@ import json
 from urllib import error, request
 
 TINYFISH_TIMEOUT_SECONDS = 25
-_supports_output_schema = True
 
 
 class MissingApiKeyError(Exception):
@@ -24,27 +23,6 @@ def call_ai_api(prompt, api_key, question_count=3):
         ),
         "browser_profile": "lite",
     }
-    if _supports_output_schema:
-        body["output_schema"] = {
-            "type": "object",
-            "properties": {
-                "questions": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "question": {"type": "string"},
-                            "difficulty": {
-                                "type": "string",
-                                "enum": ["Easy", "Medium", "Hard"],
-                            },
-                        },
-                        "required": ["question", "difficulty"],
-                    },
-                }
-            },
-            "required": ["questions"],
-        }
 
     result = run_tinyfish_automation(body, api_key)
 
@@ -55,8 +33,6 @@ def call_ai_api(prompt, api_key, question_count=3):
 
 
 def run_tinyfish_automation(body, api_key):
-    global _supports_output_schema
-
     api_request = request.Request(
         "https://agent.tinyfish.ai/v1/automation/run",
         data=json.dumps(body).encode("utf-8"),
@@ -77,12 +53,6 @@ def run_tinyfish_automation(body, api_key):
             detail = f"HTTP {exc.code} {exc.reason}"
 
         print(f"TinyFish HTTPError: code={exc.code} detail={detail}")
-
-        if exc.code == 403 and "output_schema" in detail:
-            _supports_output_schema = False
-            fallback_body = dict(body)
-            fallback_body.pop("output_schema", None)
-            return run_tinyfish_automation(fallback_body, api_key)
 
         raise RuntimeError(f"AI API request failed (HTTP {exc.code}): {detail}") from exc
     except error.URLError as exc:

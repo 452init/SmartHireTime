@@ -13,7 +13,7 @@ def build_interview_question_prompt(
 Create exactly {question_count} thoughtful interview questions for a "{job_title}" role.
 
 The questions should:
-- Do no exceed the {question_count} question limit for each {job_title} question.
+- Do not exceed the {question_count} question limit.
 - Be specific to the role
 - Match a {level} seniority level
 - Focus on {category} aspects of the role
