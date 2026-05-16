@@ -2,7 +2,7 @@ import json
 
 
 def build_interview_question_prompt(
-    job_title, level="Mid-Level", category="Technical", question_count=8, focus_areas=None
+    job_title, level="Mid-Level", category="Technical", question_count=3, focus_areas=None
 ):
     focus_areas = [str(area).strip() for area in (focus_areas or []) if str(area).strip()]
     focus_line = ""
@@ -38,7 +38,7 @@ Each difficulty must be one of: "Easy", "Medium", "Hard".
 """
 
 
-def parse_questions(ai_json_text, question_count=8):
+def parse_questions(ai_json_text, question_count=3):
     parsed = json.loads(ai_json_text)
     questions = parsed.get("questions")
 
