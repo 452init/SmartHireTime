@@ -1,12 +1,11 @@
 import hashlib
-import json
 import secrets
 from datetime import datetime, timedelta, timezone
-from urllib import error, request
 
 import bcrypt
 import jwt
-_BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email"
+
+from brevo_api import BrevoConfigError, BrevoRequestError, send_transactional_email
 
 
 class AuthTokenError(Exception):
@@ -86,42 +85,22 @@ def hash_refresh_token(token, secret):
 
 
 def send_code_email(email, code, brevo_config, purpose="login"):
-    api_key = brevo_config.get("api_key", "")
-    sender_email = brevo_config.get("sender_email", "")
-    sender_name = brevo_config.get("sender_name", "SmartHireTime")
-
-    if not api_key or not sender_email:
-        print(f"Auth code for {email}: {code}")
-        return
+    del brevo_config  # Credentials come from BREVO_* env vars (see brevo_api.py).
 
     is_recovery = purpose == "recovery"
     code_label = "password reset" if is_recovery else "sign-in"
-    body = {
-        "sender": {"email": sender_email, "name": sender_name},
-        "to": [{"email": email}],
-        "subject": f"Your SmartHireTime {code_label} code",
-        "textContent": (
-            f"Your SmartHireTime {code_label} code is:\n\n"
-            f"{code}\n\n"
-            "This code expires soon. If you did not request this, you can ignore this email."
-        ),
-    }
-
-    api_request = request.Request(
-        _BREVO_ENDPOINT,
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "api-key": api_key,
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
 
     try:
-        with request.urlopen(api_request, timeout=15) as response:
-            response.read()
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8")
-        raise RuntimeError(f"Brevo email request failed: {detail}") from exc
-    except error.URLError as exc:
-        raise RuntimeError("Unable to reach Brevo to send email.") from exc
+        send_transactional_email(
+            to_email=email,
+            subject=f"Your SmartHireTime {code_label} code",
+            text_content=(
+                f"Your SmartHireTime {code_label} code is:\n\n"
+                f"{code}\n\n"
+                "This code expires soon. If you did not request this, you can ignore this email."
+            ),
+        )
+    except BrevoConfigError:
+        print(f"Auth code for {email}: {code}")
+    except BrevoRequestError as exc:
+        raise RuntimeError(str(exc)) from exc
