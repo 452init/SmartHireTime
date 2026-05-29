@@ -51,6 +51,7 @@ type AuthMode = "signin" | "signup" | "recover";
 
 type FocusProfile = {
   keywords: string[];
+  seniorityLevels: string[];
   areas: string[];
 };
 
@@ -64,9 +65,56 @@ const defaultFocusAreas = [
   "Collaboration",
   "Cultural Fit"
 ];
+
+const defaultFocusProfile: FocusProfile = {
+  keywords: [],
+  seniorityLevels: ["Entry-Level", "Associate", "Mid-Level", "Senior", "Lead", "Manager"],
+  areas: [
+    "Role-Specific Skills",
+    "Communication and Collaboration",
+    "Problem Solving",
+    "Professional Judgment",
+    "Career Motivation"
+  ]
+};
+
+const securityExecutiveLevels = ["Director", "Senior Director", "VP Security", "CISO", "Chief Security Officer", "Board Advisor"];
+const securityTechnicalLevels = ["Security Analyst", "Security Engineer", "Security Specialist"];
+const securityGovernanceLevels = ["Security Analyst", "Security Specialist", "Security Manager", "Director", "CISO"];
+const softwareLevels = ["Intern", "Junior Engineer", "Mid-Level Engineer", "Senior Engineer", "Staff Engineer", "Principal Engineer"];
+const medicalLevels = ["Student", "Resident", "Fellow", "Attending", "Consultant", "Medical Director"];
+const teachingLevels = ["Trainee Teacher", "Classroom Teacher", "Senior Teacher", "Department Lead", "Principal", "Academic Director"];
+const legalLevels = ["Paralegal", "Junior Associate", "Associate", "Senior Associate", "Counsel", "Partner"];
+const financeLevels = ["Junior Analyst", "Analyst", "Senior Analyst", "Manager", "Controller", "Finance Director"];
+const salesLevels = ["Sales Development Rep", "Account Executive", "Senior Account Executive", "Account Manager", "Sales Manager", "Revenue Leader"];
+const productLevels = ["Associate PM", "Product Manager", "Senior Product Manager", "Group Product Manager", "Director of Product", "VP Product"];
+const designLevels = ["Junior Designer", "Designer", "Senior Designer", "Lead Designer", "Design Manager", "Creative Director"];
+const hrLevels = ["HR Assistant", "Recruiter", "HR Generalist", "Senior HR Partner", "People Manager", "CHRO"];
+const marketingLevels = ["Marketing Coordinator", "Marketing Manager", "Senior Marketing Manager", "Director of Marketing", "VP Marketing", "CMO"];
+const consultingLevels = ["Analyst", "Associate", "Senior Associate", "Manager", "Principal", "Partner"];
+const analystLevels = ["Junior Analyst", "Analyst", "Senior Analyst", "Lead Analyst", "Manager", "Director"];
+const engineeringLevels = ["Junior Engineer", "Engineer", "Senior Engineer", "Staff Engineer", "Principal Engineer", "Distinguished Engineer"];
+const operationsLevels = ["Coordinator", "Specialist", "Manager", "Senior Manager", "Director", "VP Operations"];
+const architectureLevels = ["Junior Engineer", "Engineer", "Senior Engineer", "Lead Engineer", "Architect", "Principal Architect"];
+const researchLevels = ["Research Assistant", "Research Scientist", "Senior Scientist", "Principal Scientist", "Research Director", "Chief Scientist"];
+const mlResearchLevels = [
+  "Research Intern",
+  "Research Engineer",
+  "Machine Learning Engineer",
+  "Senior ML Engineer",
+  "Staff ML Engineer",
+  "Principal ML Researcher",
+  "Research Scientist",
+  "Senior Research Scientist",
+  "Lead Research Scientist",
+  "Research Director",
+  "VP Research"
+];
+
 const focusProfiles: FocusProfile[] = [
   {
     keywords: ["ciso", "chief information security officer", "security executive"],
+    seniorityLevels: securityExecutiveLevels,
     areas: [
       "Security Strategy and Governance",
       "Board and Executive Communication",
@@ -76,7 +124,107 @@ const focusProfiles: FocusProfile[] = [
     ]
   },
   {
+    keywords: ["software engineer", "developer", "frontend", "backend", "full stack", "programmer", "mobile engineer"],
+    seniorityLevels: softwareLevels,
+    areas: [
+      "Coding and Debugging",
+      "System Design",
+      "Data Structures and Algorithms",
+      "Code Quality and Testing",
+      "Technical Collaboration"
+    ]
+  },
+  {
+    keywords: ["doctor", "physician", "surgeon", "clinician", "medical officer", "nurse", "nursing", "nurse practitioner"],
+    seniorityLevels: medicalLevels,
+    areas: [
+      "Clinical Judgment",
+      "Patient Communication",
+      "Ethics and Safety",
+      "Diagnosis and Treatment Planning",
+      "Interdisciplinary Care"
+    ]
+  },
+  {
+    keywords: ["teacher", "educator", "lecturer", "professor", "instructor", "tutor"],
+    seniorityLevels: teachingLevels,
+    areas: [
+      "Lesson Planning",
+      "Classroom Management",
+      "Student Assessment",
+      "Inclusive Teaching",
+      "Parent and Stakeholder Communication"
+    ]
+  },
+  {
+    keywords: ["lawyer", "attorney", "legal counsel", "advocate", "solicitor", "paralegal"],
+    seniorityLevels: legalLevels,
+    areas: [
+      "Legal Research and Analysis",
+      "Client Advisory",
+      "Negotiation and Drafting",
+      "Ethics and Confidentiality",
+      "Case Strategy"
+    ]
+  },
+  {
+    keywords: ["accountant", "finance", "financial analyst", "auditor", "controller", "bookkeeper"],
+    seniorityLevels: financeLevels,
+    areas: [
+      "Financial Reporting",
+      "Budgeting and Forecasting",
+      "Controls and Compliance",
+      "Data Analysis",
+      "Stakeholder Reporting"
+    ]
+  },
+  {
+    keywords: ["sales", "account executive", "business development", "customer success", "account manager", "sdr", "bdr"],
+    seniorityLevels: salesLevels,
+    areas: [
+      "Discovery and Qualification",
+      "Pipeline Management",
+      "Objection Handling",
+      "Customer Relationship Management",
+      "Commercial Negotiation"
+    ]
+  },
+  {
+    keywords: ["product manager", "product owner", "program manager", "project manager", "scrum master", "growth product", "platform product"],
+    seniorityLevels: productLevels,
+    areas: [
+      "Product Strategy",
+      "User Research",
+      "Prioritization",
+      "Cross-Functional Delivery",
+      "Metrics and Experimentation"
+    ]
+  },
+  {
+    keywords: ["designer", "ux", "ui", "product designer", "product design", "graphic designer", "creative director", "researcher"],
+    seniorityLevels: designLevels,
+    areas: [
+      "User-Centered Design",
+      "Visual Craft",
+      "Prototyping and Testing",
+      "Design Systems",
+      "Stakeholder Critique"
+    ]
+  },
+  {
+    keywords: ["hr", "human resources", "recruiter", "talent acquisition", "talent", "people operations"],
+    seniorityLevels: hrLevels,
+    areas: [
+      "Talent Acquisition",
+      "Employee Relations",
+      "Policy and Compliance",
+      "Performance Management",
+      "Culture and Engagement"
+    ]
+  },
+  {
     keywords: ["penetration tester", "pentester", "ethical hacker", "red team", "application security tester"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Reconnaissance and Scoping",
       "Exploitation Methodology",
@@ -87,6 +235,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["reverse engineer", "malware analyst", "malware reverse", "binary analysis"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Static and Dynamic Analysis",
       "Assembly and Debugging",
@@ -97,6 +246,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["incident responder", "incident response", "incident respondent", "soc analyst", "security operations"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Triage and Prioritization",
       "Detection and Investigation",
@@ -107,6 +257,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["digital forensics", "forensics analyst", "dfir", "forensic analyst"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Evidence Preservation",
       "Endpoint Forensics",
@@ -117,6 +268,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["cloud security", "cloud security specialist", "cloud security engineer"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Identity and Access Controls",
       "Cloud Threat Modeling",
@@ -127,6 +279,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["security engineer", "information security analyst", "cybersecurity analyst", "security analyst"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Threat Modeling",
       "Security Controls",
@@ -137,6 +290,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["vulnerability analyst", "vulnerability management", "vulnerability researcher"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Asset and Exposure Analysis",
       "CVSS and Risk Ranking",
@@ -147,6 +301,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["cybersecurity risk", "grc", "security risk analyst", "information risk"],
+    seniorityLevels: securityGovernanceLevels,
     areas: [
       "Risk Assessment",
       "Control Mapping",
@@ -157,6 +312,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["ai security", "ml security", "model security", "llm security"],
+    seniorityLevels: securityTechnicalLevels,
     areas: [
       "Model Threat Modeling",
       "Prompt Injection and Abuse Cases",
@@ -166,17 +322,56 @@ const focusProfiles: FocusProfile[] = [
     ]
   },
   {
-    keywords: ["ai engineer", "artificial intelligence engineer", "machine learning engineer", "ml engineer"],
+    keywords: [
+      "machine learning",
+      "ml",
+      "deep learning",
+      "ml research",
+      "machine learning researcher",
+      "ml researcher",
+      "ml scientist",
+      "deep learning researcher",
+      "research engineer",
+      "ml ops",
+      "mle"
+    ],
+    seniorityLevels: mlResearchLevels,
+    areas: [
+      "Model Architecture and Research",
+      "Training and Optimization",
+      "Evaluation and Metrics",
+      "Experimentation and Reproducibility",
+      "Publication and Peer Review",
+      "Scalability and MLOps",
+      "Data Curation and Feature Engineering",
+      "Responsible AI and Bias Mitigation"
+    ]
+  },
+  {
+    keywords: [
+      "ai engineer",
+      "artificial intelligence engineer",
+      "llm engineer",
+      "prompt engineer",
+      "ai developer",
+      "ml engineer",
+      "machine learning engineer",
+      "deep learning engineer"
+    ],
+    seniorityLevels: engineeringLevels,
     areas: [
       "Model Development",
-      "Data Pipeline Design",
+      "Model Architecture",
+      "Training and Optimization",
       "Evaluation and Metrics",
       "Deployment and MLOps",
-      "Responsible AI"
+      "Responsible AI",
+      "Prompting and LLM Design"
     ]
   },
   {
     keywords: ["cloud architect", "cloud architecture", "solutions architect", "solution architect"],
+    seniorityLevels: architectureLevels,
     areas: [
       "Architecture Tradeoffs",
       "Scalability and Reliability",
@@ -187,6 +382,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["devops", "site reliability", "sre", "platform engineer", "infrastructure engineer"],
+    seniorityLevels: engineeringLevels,
     areas: [
       "CI/CD and Release Management",
       "Infrastructure as Code",
@@ -197,6 +393,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["system admin", "systems admin", "systems administrator", "sysadmin", "network administrator"],
+    seniorityLevels: ["Junior Administrator", "Administrator", "Senior Administrator", "IT Manager", "Director of IT", "Head of Infrastructure"],
     areas: [
       "Server Administration",
       "Identity and Access Management",
@@ -206,67 +403,41 @@ const focusProfiles: FocusProfile[] = [
     ]
   },
   {
-    keywords: ["customer success", "client success", "account manager", "implementation manager"],
-    areas: [
-      "Customer Onboarding",
-      "Product Adoption",
-      "Retention and Churn Risk",
-      "Expansion and Account Growth",
-      "Executive Communication"
-    ]
-  },
-  {
-    keywords: ["product manager", "product owner", "growth product", "platform product"],
-    areas: [
-      "Product Sense",
-      "Execution and Prioritization",
-      "Metrics and Analytics",
-      "Stakeholder Management",
-      "Strategy and Tradeoffs"
-    ]
-  },
-  {
-    keywords: ["software engineer", "frontend", "backend", "full stack", "developer", "mobile engineer"],
-    areas: [
-      "Coding and Algorithms",
-      "System Design",
-      "Technical Deep Dive",
-      "Debugging and Reliability",
-      "Engineering Collaboration"
-    ]
-  },
-  {
-    keywords: ["data scientist", "data analyst", "analytics engineer", "business intelligence", "bi analyst"],
+    keywords: [
+      "data scientist",
+      "data analyst",
+      "analytics engineer",
+      "business intelligence",
+      "bi analyst",
+      "machine learning",
+      "ml",
+      "ml scientist",
+      "machine learning scientist",
+      "ml researcher",
+      "deep learning"
+    ],
+    seniorityLevels: [
+      "Junior Data Scientist",
+      "Data Scientist",
+      "Senior Data Scientist",
+      "Lead Data Scientist",
+      "Principal Data Scientist",
+      "Head of Data Science",
+      "Research Scientist"
+    ],
     areas: [
       "Statistical Reasoning",
       "Experiment Design",
       "Data Storytelling",
-      "Modeling Approach",
+      "Modeling and ML",
+      "Model Evaluation and Deployment",
+      "Feature Engineering",
       "Business Impact"
     ]
   },
   {
-    keywords: ["designer", "ux", "ui", "product design", "researcher"],
-    areas: [
-      "User Empathy",
-      "Portfolio Deep Dive",
-      "Interaction Design",
-      "Research and Validation",
-      "Design Critique"
-    ]
-  },
-  {
-    keywords: ["sales", "account executive", "business development", "sdr", "bdr"],
-    areas: [
-      "Discovery",
-      "Objection Handling",
-      "Pipeline Management",
-      "Negotiation",
-      "Revenue Ownership"
-    ]
-  },
-  {
     keywords: ["marketing", "growth", "brand", "content", "demand generation"],
+    seniorityLevels: marketingLevels,
     areas: [
       "Campaign Strategy",
       "Audience Insight",
@@ -276,17 +447,8 @@ const focusProfiles: FocusProfile[] = [
     ]
   },
   {
-    keywords: ["recruiter", "talent", "hr", "people operations", "human resources"],
-    areas: [
-      "Candidate Experience",
-      "Sourcing Strategy",
-      "Stakeholder Alignment",
-      "Structured Interviewing",
-      "People Judgment"
-    ]
-  },
-  {
     keywords: ["operations", "program manager", "project manager", "chief of staff"],
+    seniorityLevels: operationsLevels,
     areas: [
       "Operational Planning",
       "Risk Management",
@@ -296,87 +458,8 @@ const focusProfiles: FocusProfile[] = [
     ]
   },
   {
-    keywords: ["finance", "accountant", "controller", "financial analyst"],
-    areas: [
-      "Financial Modeling",
-      "Controls and Accuracy",
-      "Business Partnering",
-      "Forecasting",
-      "Risk and Compliance"
-    ]
-  },
-  {
-    keywords: ["nurse", "registered nurse", "rn", "nursing", "nurse practitioner"],
-    areas: [
-      "Patient Assessment",
-      "Clinical Judgment",
-      "Medication Safety",
-      "Care Coordination",
-      "Patient Communication"
-    ]
-  },
-  {
-    keywords: ["surgeon", "surgery", "surgical"],
-    areas: [
-      "Operative Decision Making",
-      "Preoperative Assessment",
-      "Complication Management",
-      "Team Communication",
-      "Patient Safety"
-    ]
-  },
-  {
-    keywords: ["doctor", "physician", "medical officer", "clinician"],
-    areas: [
-      "Diagnosis and Clinical Reasoning",
-      "Patient Management",
-      "Ethics and Consent",
-      "Interdisciplinary Collaboration",
-      "Patient Communication"
-    ]
-  },
-  {
-    keywords: ["pharmacist", "pharmacy"],
-    areas: [
-      "Medication Therapy Management",
-      "Drug Safety",
-      "Patient Counseling",
-      "Regulatory Compliance",
-      "Clinical Collaboration"
-    ]
-  },
-  {
-    keywords: ["dentist", "dental"],
-    areas: [
-      "Clinical Diagnosis",
-      "Treatment Planning",
-      "Patient Comfort",
-      "Infection Control",
-      "Practice Communication"
-    ]
-  },
-  {
-    keywords: ["lawyer", "attorney", "legal counsel", "paralegal"],
-    areas: [
-      "Legal Analysis",
-      "Client Advisory",
-      "Negotiation",
-      "Risk and Compliance",
-      "Writing and Documentation"
-    ]
-  },
-  {
-    keywords: ["teacher", "educator", "lecturer", "professor", "instructor"],
-    areas: [
-      "Instructional Planning",
-      "Student Engagement",
-      "Assessment and Feedback",
-      "Classroom Management",
-      "Inclusive Teaching"
-    ]
-  },
-  {
     keywords: ["consultant", "management consultant", "strategy consultant"],
+    seniorityLevels: consultingLevels,
     areas: [
       "Problem Structuring",
       "Client Communication",
@@ -387,6 +470,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["business analyst", "systems analyst", "process analyst"],
+    seniorityLevels: analystLevels,
     areas: [
       "Requirements Gathering",
       "Process Mapping",
@@ -397,6 +481,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["architect", "civil engineer", "mechanical engineer", "electrical engineer"],
+    seniorityLevels: architectureLevels,
     areas: [
       "Technical Design",
       "Safety and Standards",
@@ -407,6 +492,7 @@ const focusProfiles: FocusProfile[] = [
   },
   {
     keywords: ["research scientist", "scientist", "researcher"],
+    seniorityLevels: researchLevels,
     areas: [
       "Research Design",
       "Experimental Rigor",
