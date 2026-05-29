@@ -1,7 +1,7 @@
 import json
 from urllib import error, request
 
-TINYFISH_TIMEOUT_SECONDS = 25
+TINYFISH_TIMEOUT_SECONDS = 30
 
 
 class MissingApiKeyError(Exception):
