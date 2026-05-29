@@ -54,7 +54,22 @@ jobs:
             echo "Missing RENDER_DEPLOY_HOOK_URL secret."
             exit 1
           fi
-          curl --fail --silent --show-error -X POST "$RENDER_DEPLOY_HOOK_URL"
+          attempts=5
+          for i in $(seq 1 $attempts); do
+            response=$(curl --silent --show-error -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL" -o /dev/null)
+            if [ "$response" -eq 409 ]; then
+              echo "Received 409 Conflict. Retrying in 30 seconds... (Attempt $i/$attempts)"
+              sleep 30
+            elif [ "$response" -ge 200 ] && [ "$response" -le 299 ]; then
+              echo "Deployment triggered successfully."
+              exit 0
+            else
+              echo "Deployment failed with HTTP status $response."
+              exit 1
+            fi
+          done
+          echo "Failed to trigger deployment after $attempts attempts."
+          exit 1
 
   deploy-frontend-vercel:
     name: Deploy frontend on Vercel
@@ -70,4 +85,19 @@ jobs:
             echo "Missing VERCEL_DEPLOY_HOOK_URL secret."
             exit 1
           fi
-          curl --fail --silent --show-error -X POST "$VERCEL_DEPLOY_HOOK_URL"
+          attempts=5
+          for i in $(seq 1 $attempts); do
+            response=$(curl --silent --show-error -w "%{http_code}" -X POST "$VERCEL_DEPLOY_HOOK_URL" -o /dev/null)
+            if [ "$response" -eq 409 ]; then
+              echo "Received 409 Conflict. Retrying in 30 seconds... (Attempt $i/$attempts)"
+              sleep 30
+            elif [ "$response" -ge 200 ] && [ "$response" -le 299 ]; then
+              echo "Deployment triggered successfully."
+              exit 0
+            else
+              echo "Deployment failed with HTTP status $response."
+              exit 1
+            fi
+          done
+          echo "Failed to trigger deployment after $attempts attempts."
+          exit 1
