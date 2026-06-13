@@ -40,8 +40,8 @@ Each difficulty must be one of: "Easy", "Medium", "Hard".
 
 
 def parse_questions(ai_json_text, question_count=3):
-    parsed = json.loads(ai_json_text)
-    questions = parsed.get("questions")
+    parsed = _coerce_json(ai_json_text)
+    questions = parsed.get("questions") if isinstance(parsed, dict) else parsed
 
     if not isinstance(questions, list):
         raise ValueError("AI response did not include a questions array.")
@@ -63,3 +63,27 @@ def parse_questions(ai_json_text, question_count=3):
             cleaned_questions.append({"question": text, "difficulty": difficulty})
 
     return cleaned_questions[:question_count]
+
+
+def _coerce_json(ai_json_text):
+    if isinstance(ai_json_text, (dict, list)):
+        return ai_json_text
+
+    text = str(ai_json_text).strip()
+    if text.startswith("```"):
+        text = _strip_code_fences(text)
+
+    return json.loads(text)
+
+
+def _strip_code_fences(text):
+    lines = text.splitlines()
+    if not lines:
+        return text
+
+    if lines[0].startswith("```"):
+        lines = lines[1:]
+    if lines and lines[-1].startswith("```"):
+        lines = lines[:-1]
+
+    return "\n".join(lines).strip()

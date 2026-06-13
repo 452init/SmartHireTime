@@ -7,278 +7,31 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Crimson+Pro:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <main class="boardroom">
-
-      <!-- ── Topbar ─────────────────────────────────────────────────────── -->
-      <header class="topbar">
-        <div class="topbar-brand">
-          <p class="eyebrow">Be Confident In Your Career</p>
-          <div class="brand-row">
-            <h1>Good to Hire</h1>
-            <div class="brand-mark" aria-hidden="true">
-              <span></span>
-            </div>
-          </div>
-        </div>
-        <div class="topbar-actions">
-          <!--
-            When logged OUT: clicking this opens the sign-in panel.
-            When logged IN:  clicking this opens the dashboard.
-            The label text is updated by JS (shows first name when logged in).
-          -->
-          <button id="auth-trigger" class="auth-trigger" type="button">
-            <span class="auth-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" role="presentation">
-                <path d="M12 12.5a4 4 0 1 0-0.001-8.001A4 4 0 0 0 12 12.5Z" />
-                <path d="M4 20c1.6-3.2 4.3-4.8 8-4.8s6.4 1.6 8 4.8" />
-              </svg>
-            </span>
-            <span id="auth-trigger-label">Sign in</span>
-          </button>
-          <button id="logout-button" class="ghost-btn" type="button" hidden>
-            Sign out
-          </button>
+    <main class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">Interview prompts, tuned for the role</p>
+        <div class="hero-copy">
+          <h1>Good to Hire</h1>
+          <p>
+            Generate focused interview questions with Gemini and keep the output structured,
+            concise, and ready for hiring review.
+          </p>
         </div>
       </header>
 
-      <!-- ── Auth panel (fixed full-screen overlay) ─────────────────────── -->
-      <section id="auth-panel" class="auth-panel" hidden>
-        <div id="auth-session" class="auth-card" hidden>
-          <div class="auth-header">
-            <h2>You're signed in</h2>
-            <p id="auth-session-email">Signed in.</p>
-          </div>
-        </div>
-
-        <div id="auth-start" class="auth-card">
-          <div class="auth-header">
-            <h2 id="auth-title">Sign in to continue</h2>
-            <p>Use your email and password or continue with Google.</p>
-          </div>
-
-          <form id="auth-form" class="auth-form" autocomplete="on">
-            <!-- Name fields are only shown in sign-up mode -->
-            <div id="auth-name-fields" class="auth-grid" hidden>
-              <div class="field-group">
-                <label for="first-name">First name</label>
-                <input
-                  id="first-name"
-                  class="gold-input"
-                  name="firstName"
-                  type="text"
-                  autocomplete="given-name"
-                />
-              </div>
-              <div class="field-group">
-                <label for="last-name">Last name</label>
-                <input
-                  id="last-name"
-                  class="gold-input"
-                  name="lastName"
-                  type="text"
-                  autocomplete="family-name"
-                />
-              </div>
-            </div>
-
-            <div class="field-group">
-              <label for="auth-email">Email</label>
-              <input
-                id="auth-email"
-                class="gold-input"
-                name="email"
-                type="email"
-                autocomplete="email"
-                required
-              />
-            </div>
-
-            <div id="auth-password-field" class="field-group">
-              <label for="auth-password">Password</label>
-              <input
-                id="auth-password"
-                class="gold-input"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                minlength="8"
-                required
-              />
-            </div>
-
-            <!-- Toggle between sign-in and sign-up modes -->
-            <button id="auth-mode-toggle" class="auth-toggle" type="button">
-              New here? Create account
-            </button>
-
-            <button id="forgot-password-button" class="auth-toggle auth-link" type="button">
-              Forgot password?
-            </button>
-
-            <div class="action-row">
-              <button id="auth-submit" class="gen-btn" type="submit">
-                Sign in
-              </button>
-            </div>
-          </form>
-
-          <div class="auth-divider"><span>or</span></div>
-          <div id="google-button" class="google-button" aria-label="Continue with Google"></div>
-          <div id="auth-status" class="status" role="status" aria-live="polite"></div>
-        </div>
-
-        <div id="code-panel" class="auth-card" hidden>
-          <div class="auth-header">
-            <h2>Enter your code</h2>
-            <p>
-              We emailed a 6-digit code to
-              <span id="code-email" class="code-email"></span>.
-            </p>
-          </div>
-
-          <form id="code-form" class="auth-form">
-            <div class="field-group">
-              <label for="auth-code">Verification code</label>
-              <input
-                id="auth-code"
-                class="gold-input"
-                name="code"
-                type="text"
-                inputmode="numeric"
-                pattern="[0-9]{6}"
-                maxlength="6"
-                autocomplete="one-time-code"
-                required
-              />
-            </div>
-            <div class="action-row">
-              <button id="code-submit" class="gen-btn" type="submit">
-                Verify
-              </button>
-            </div>
-          </form>
-
-          <div class="code-actions">
-            <button id="code-resend" class="ghost-btn" type="button">Resend code</button>
-            <button id="code-back" class="ghost-btn" type="button">Use a different email</button>
-          </div>
-          <div id="code-status" class="status" role="status" aria-live="polite"></div>
-        </div>
-      </section>
-
-      <!-- ── Dashboard page (full-width, replaces app view) ────────────── -->
-      <!--
-        Sits outside .workspace so it fills the full page width.
-        JS hides/shows this as a "page" — only visible when user clicks their name.
-      -->
-      <section id="dashboard-panel" class="dashboard-panel" hidden>
-        <div class="dashboard-inner">
-          <div class="dashboard-header">
-            <div>
-              <p class="eyebrow">Account Center</p>
-              <h2>Dashboard</h2>
-            </div>
-            <button id="dashboard-close" class="ghost-btn" type="button">
-              Back to Questions
-            </button>
-          </div>
-
-          <div class="dashboard-grid">
-
-            <!-- Profile photo -->
-            <section class="dashboard-card">
-              <h3>Profile photo</h3>
-              <div class="profile-photo">
-                <div id="profile-photo-placeholder" class="profile-photo-placeholder">
-                  No photo
-                </div>
-                <img id="profile-photo-preview" class="profile-photo-preview" alt="Profile" hidden />
-              </div>
-              <input id="profile-photo-input" type="file" accept="image/*" />
-              <button id="profile-photo-upload" class="gen-btn" type="button" style="margin-top:12px;">
-                Upload photo
-              </button>
-              <div id="profile-photo-status" class="status" role="status" aria-live="polite"></div>
-            </section>
-
-            <!-- Change password -->
-            <section class="dashboard-card">
-              <h3>Change password</h3>
-              <form id="password-form" class="auth-form">
-                <div id="current-password-field" class="field-group">
-                  <label for="current-password">Current password</label>
-                  <input
-                    id="current-password"
-                    class="gold-input"
-                    name="currentPassword"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                  />
-                </div>
-                <div class="field-group">
-                  <label for="new-password">New password</label>
-                  <input
-                    id="new-password"
-                    class="gold-input"
-                    name="newPassword"
-                    type="password"
-                    minlength="8"
-                    required
-                  />
-                </div>
-                <div class="field-group">
-                  <label for="confirm-password">Confirm new password</label>
-                  <input
-                    id="confirm-password"
-                    class="gold-input"
-                    name="confirmPassword"
-                    type="password"
-                    minlength="8"
-                    required
-                  />
-                </div>
-                <div class="action-row">
-                  <button id="password-submit" class="gen-btn" type="submit">
-                    Update password
-                  </button>
-                </div>
-              </form>
-              <div id="password-status" class="status" role="status" aria-live="polite"></div>
-            </section>
-
-            <!-- Danger zone -->
-            <section class="dashboard-card danger-card">
-              <h3>Delete account</h3>
-              <p class="danger-text">
-                This will permanently remove your account and sign you out immediately.
-              </p>
-              <button id="delete-account-button" class="ghost-btn danger-btn" type="button">
-                Delete account
-              </button>
-              <div id="delete-status" class="status" role="status" aria-live="polite"></div>
-            </section>
-
-          </div>
-        </div>
-      </section>
-
-      <!-- ── Main workspace (question generator) ────────────────────────── -->
       <section class="workspace" aria-labelledby="page-title">
-        <section id="app-panel" class="app-panel">
-          <div class="tagline">
-            <h2 id="page-title">
-              Craft the Perfect <em>Interview</em>
-            </h2>
-            <p>Precision-engineered questions for professionals</p>
+        <section class="composer">
+          <div class="composer-copy">
+            <h2 id="page-title">Craft the perfect interview set</h2>
+            <p>Choose a role, steer the focus, and produce three questions in one pass.</p>
           </div>
 
-          <form id="question-form" class="generator-panel">
+          <form id="question-form" class="generator-card">
             <div class="field-group">
               <label for="job-title">Position</label>
               <input
@@ -287,27 +40,23 @@
                 name="jobTitle"
                 type="text"
                 value="Customer Success Manager"
-                placeholder="e.g. Chief Product Officer, Senior Engineer..."
+                placeholder="e.g. Senior Engineer, Product Manager..."
                 autocomplete="off"
                 required
               />
             </div>
 
             <div class="field-group">
-              <label>Seniority Level</label>
+              <label>Seniority level</label>
               <div id="level-options" class="pill-group" aria-label="Seniority level"></div>
             </div>
 
             <div class="field-group">
-              <label>Focus Area</label>
+              <label>Focus area</label>
               <div id="category-options" class="pill-group" aria-label="Focus area"></div>
             </div>
 
-            <div class="action-row">
-              <button id="generate-button" class="gen-btn" type="submit">
-                Generate Questions
-              </button>
-            </div>
+            <button id="generate-button" class="gen-btn" type="submit">Generate Questions</button>
           </form>
 
           <div id="status" class="status" role="status" aria-live="polite"></div>
@@ -327,9 +76,7 @@
           </section>
         </section>
       </section>
-
     </main>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

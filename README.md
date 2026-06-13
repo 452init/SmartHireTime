@@ -2,18 +2,16 @@
 
 # SmartHireTime
 
-SmartHireTime is a simple web app that accepts a job title and returns three thoughtful AI-generated interview questions for that role. The primary example in the input is **Customer Success Manager**.
-
-The backend uses **Flask**. The database is **PostgreSQL**. The frontend is **TypeScript**.
+SmartHireTime is a simple web app that turns a job title into three thoughtful interview questions. The frontend is TypeScript, the backend is Flask, the question set is stored in PostgreSQL, and Gemini generates the structured JSON response.
 
 ## What The App Does
 
 1. The user enters a job title.
-2. The TypeScript frontend sends the title to the Flask API.
-3. Flask builds a role-specific AI prompt.
-4. Flask calls the TinyFish Agent API.
-5. Flask saves the generated question set in PostgreSQL.
-6. The frontend displays the three interview questions.
+2. The TypeScript frontend sends the role details to the Flask API.
+3. Flask builds a role-specific prompt.
+4. Flask calls the free Gemini API.
+5. Flask validates the JSON response and saves the question set in PostgreSQL.
+6. The frontend renders the interview questions.
 
 ## Project Structure
 
@@ -21,7 +19,7 @@ The backend uses **Flask**. The database is **PostgreSQL**. The frontend is **Ty
 SmartHireTime/
 ├── backend/
 │   ├── app.py              # Flask entry point and HTTP routes
-│   ├── ai_api.py           # TinyFish API request
+│   ├── ai_api.py           # Gemini API request
 │   ├── config.py           # Environment loading
 │   ├── database.py         # PostgreSQL setup and inserts
 │   └── question_builder.py # Prompt creation and response parsing
@@ -29,12 +27,9 @@ SmartHireTime/
 │   ├── index.html          # Page markup
 │   └── src/
 │       ├── main.ts         # TypeScript form and API logic
-│       └── styles.css      # Clean professional UI
-├── .env.example            # Example environment variables
+│       └── styles.css      # Clean hiring-focused UI
 ├── render.yaml             # Render production service definition
 ├── vercel.json             # Vercel production build and SPA routing config
-├── .github/workflows/
-│   └── deploy-production.yml # Validate + trigger production deploy hooks on push
 ├── requirements.txt        # Flask and PostgreSQL Python dependencies
 ├── package.json            # Frontend build scripts
 ├── tsconfig.json           # TypeScript settings
@@ -46,14 +41,15 @@ SmartHireTime/
 
 `backend/app.py`
 
-This is the backend entry point. It creates the Flask app, exposes the API route, serves the built frontend, initializes PostgreSQL, and connects the helper layers together.
+This is the backend entry point. It exposes the API route, serves health checks, initializes PostgreSQL, and connects the helper layers together.
 
 `backend/config.py`
 
 Loads `.env` values:
 
-- `TINYFISH_API_KEY`
+- `GEMINI_API_KEY`
 - `DATABASE_URL`
+- `FRONTEND_ORIGIN`
 - `PORT`
 
 `backend/database.py`
@@ -62,39 +58,15 @@ Creates the PostgreSQL table if needed and saves each generated question set.
 
 `backend/question_builder.py`
 
-Builds the AI prompt and parses the AI JSON response into a clean list of questions.
+Builds the AI prompt and parses the Gemini JSON response into a clean list of questions.
 
 `backend/ai_api.py`
 
-Calls the TinyFish Agent API using the synchronous `/v1/automation/run` endpoint. TinyFish receives a `goal`, a `url`, an optional `output_schema`, and the API key in the `X-API-Key` header.
+Calls the Gemini `generateContent` endpoint and extracts the returned text payload.
 
 `frontend/src/main.ts`
 
-Handles the browser logic. It reads the job title, calls the Flask API, and renders the returned questions.
-
-## Simple Wiring
-
-The backend helper files do not call each other. `backend/app.py` is the one place that hooks them together:
-
-```text
-app.py -> config.py
-app.py -> question_builder.py
-app.py -> ai_api.py
-app.py -> database.py
-```
-
-## Database Table
-
-When `DATABASE_URL` is set, the app creates this PostgreSQL table automatically on startup:
-
-```sql
-CREATE TABLE IF NOT EXISTS interview_question_sets (
-    id SERIAL PRIMARY KEY,
-    job_title TEXT NOT NULL,
-    questions JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+Handles the browser logic. It reads the job title, role level, and focus area, then calls the Flask API and renders the returned questions.
 
 ## Setup
 
@@ -120,7 +92,7 @@ cp .env.example .env
 Update `.env`:
 
 ```text
-TINYFISH_API_KEY=your_tinyfish_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smart_hire_time
 FRONTEND_ORIGIN=http://localhost:5173,https://smart-hire-time.vercel.app
 VITE_API_BASE_URL=http://127.0.0.1:3000
@@ -172,7 +144,6 @@ The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Fla
 - Frontend: Vercel
 - Backend API: Render
 - Database: Supabase (PostgreSQL)
-- Uptime monitor: UptimeRobot hitting backend health endpoint
 - CI/CD: GitHub Actions workflow in `.github/workflows/deploy-production.yml`
 
 ## Production Hosting (Step-by-Step)
@@ -182,7 +153,7 @@ The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Fla
 1. Create a Supabase project.
 2. In Supabase, copy the PostgreSQL connection string.
 3. Use that value as `DATABASE_URL` in Render.
-4. Ensure the password is URL-safe in the final `DATABASE_URL` (URL-encoded when needed).
+4. Ensure the password is URL-safe in the final `DATABASE_URL` when needed.
 
 ### 2) Deploy backend to Render
 
@@ -190,7 +161,7 @@ The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Fla
    - Build command: `pip install -r requirements.txt`
    - Start command: `gunicorn --chdir backend --bind 0.0.0.0:$PORT app:app`
 2. Set backend environment variables in Render:
-   - `TINYFISH_API_KEY`
+   - `GEMINI_API_KEY`
    - `DATABASE_URL` (Supabase PostgreSQL URL)
    - `FRONTEND_ORIGIN` (comma-separated list of allowed frontend origins, for example `https://your-app.vercel.app`)
 3. Confirm health check works:
@@ -224,16 +195,6 @@ How to get the hook URLs:
 
 After adding secrets, every push to `main` will auto-validate and auto-deploy both frontend and backend.
 
-### 5) Keep backend awake with UptimeRobot
-
-1. Create a monitor in UptimeRobot:
-   - Type: HTTP(s)
-   - URL: `https://<your-render-service>/api/health`
-   - Interval: 5 minutes
-2. Save monitor and confirm it reports `up`.
-
-This reduces cold-start downtime on low-traffic plans by periodically hitting the backend health endpoint.
-
 ## API Example
 
 Request:
@@ -254,9 +215,18 @@ Response:
   "id": 1,
   "jobTitle": "Customer Success Manager",
   "questions": [
-    "How do you identify whether a customer is at risk before they explicitly say they are unhappy?",
-    "Tell me about a time you turned product feedback from a customer into a useful internal recommendation.",
-    "How would you balance a customer's urgent request with the company's product roadmap and support boundaries?"
+    {
+      "question": "How do you identify whether a customer is at risk before they explicitly say they are unhappy?",
+      "difficulty": "Easy"
+    },
+    {
+      "question": "Tell me about a time you turned product feedback from a customer into a useful internal recommendation.",
+      "difficulty": "Medium"
+    },
+    {
+      "question": "How would you balance a customer's urgent request with the company's roadmap and support boundaries?",
+      "difficulty": "Hard"
+    }
   ]
 }
 ```

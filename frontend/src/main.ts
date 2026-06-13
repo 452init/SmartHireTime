@@ -8,6 +8,7 @@ type GeneratedQuestion = {
 };
 
 type QuestionsResponse = {
+  id?: number;
   jobTitle: string;
   questions: Array<string | GeneratedQuestion>;
 };
@@ -16,562 +17,62 @@ type ErrorResponse = {
   error: string;
 };
 
-type AuthUser = {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  profileImageUrl?: string | null;
-};
-
-type AuthSession = {
-  token: string;
-  user: AuthUser;
-  sessionPurpose: "login" | "recovery";
-};
-
-type AuthStartResponse = {
-  status: "code_sent";
-  email: string;
-  maskedEmail: string;
-  expiresInMinutes: number;
-};
-
-type AuthVerifyResponse = {
-  token: string;
-  user: AuthUser;
-  tokenType: "Bearer";
-  expiresInSeconds: number;
-  sessionPurpose: "login" | "recovery";
-};
-
-type AuthRefreshResponse = AuthVerifyResponse;
-
-type AuthMode = "signin" | "signup" | "recover";
-
 type FocusProfile = {
   keywords: string[];
-  seniorityLevels: string[];
   areas: string[];
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID || "").trim();
-const levels = ["Junior", "Mid-Level", "Senior", "Executive"];
+const levelOptionsList = ["Junior", "Mid-Level", "Senior", "Executive"];
 const defaultFocusAreas = [
   "Role-Specific Judgment",
   "Problem Solving",
   "Communication",
   "Collaboration",
-  "Cultural Fit"
-];
-
-const defaultFocusProfile: FocusProfile = {
-  keywords: [],
-  seniorityLevels: ["Entry-Level", "Associate", "Mid-Level", "Senior", "Lead", "Manager"],
-  areas: [
-    "Role-Specific Skills",
-    "Communication and Collaboration",
-    "Problem Solving",
-    "Professional Judgment",
-    "Career Motivation"
-  ]
-};
-
-const securityExecutiveLevels = ["Director", "Senior Director", "VP Security", "CISO", "Chief Security Officer", "Board Advisor"];
-const securityTechnicalLevels = ["Security Analyst", "Security Engineer", "Security Specialist"];
-const securityGovernanceLevels = ["Security Analyst", "Security Specialist", "Security Manager", "Director", "CISO"];
-const softwareLevels = ["Intern", "Junior Engineer", "Mid-Level Engineer", "Senior Engineer", "Staff Engineer", "Principal Engineer"];
-const medicalLevels = ["Student", "Resident", "Fellow", "Attending", "Consultant", "Medical Director"];
-const teachingLevels = ["Trainee Teacher", "Classroom Teacher", "Senior Teacher", "Department Lead", "Principal", "Academic Director"];
-const legalLevels = ["Paralegal", "Junior Associate", "Associate", "Senior Associate", "Counsel", "Partner"];
-const financeLevels = ["Junior Analyst", "Analyst", "Senior Analyst", "Manager", "Controller", "Finance Director"];
-const salesLevels = ["Sales Development Rep", "Account Executive", "Senior Account Executive", "Account Manager", "Sales Manager", "Revenue Leader"];
-const productLevels = ["Associate PM", "Product Manager", "Senior Product Manager", "Group Product Manager", "Director of Product", "VP Product"];
-const designLevels = ["Junior Designer", "Designer", "Senior Designer", "Lead Designer", "Design Manager", "Creative Director"];
-const hrLevels = ["HR Assistant", "Recruiter", "HR Generalist", "Senior HR Partner", "People Manager", "CHRO"];
-const marketingLevels = ["Marketing Coordinator", "Marketing Manager", "Senior Marketing Manager", "Director of Marketing", "VP Marketing", "CMO"];
-const consultingLevels = ["Analyst", "Associate", "Senior Associate", "Manager", "Principal", "Partner"];
-const analystLevels = ["Junior Analyst", "Analyst", "Senior Analyst", "Lead Analyst", "Manager", "Director"];
-const engineeringLevels = ["Junior Engineer", "Engineer", "Senior Engineer", "Staff Engineer", "Principal Engineer", "Distinguished Engineer"];
-const operationsLevels = ["Coordinator", "Specialist", "Manager", "Senior Manager", "Director", "VP Operations"];
-const architectureLevels = ["Junior Engineer", "Engineer", "Senior Engineer", "Lead Engineer", "Architect", "Principal Architect"];
-const researchLevels = ["Research Assistant", "Research Scientist", "Senior Scientist", "Principal Scientist", "Research Director", "Chief Scientist"];
-const mlResearchLevels = [
-  "Research Intern",
-  "Research Engineer",
-  "Machine Learning Engineer",
-  "Senior ML Engineer",
-  "Staff ML Engineer",
-  "Principal ML Researcher",
-  "Research Scientist",
-  "Senior Research Scientist",
-  "Lead Research Scientist",
-  "Research Director",
-  "VP Research"
+  "Decision Making"
 ];
 
 const focusProfiles: FocusProfile[] = [
   {
-    keywords: ["ciso", "chief information security officer", "security executive"],
-    seniorityLevels: securityExecutiveLevels,
-    areas: [
-      "Security Strategy and Governance",
-      "Board and Executive Communication",
-      "Risk Appetite and Prioritization",
-      "Incident Leadership",
-      "Compliance and Program Maturity"
-    ]
+    keywords: ["customer success", "account manager", "renewals", "support"],
+    areas: ["Customer Communication", "Retention Strategy", "Escalation Handling", "Value Realization", "Stakeholder Alignment"]
   },
   {
-    keywords: ["software engineer", "developer", "frontend", "backend", "full stack", "programmer", "mobile engineer"],
-    seniorityLevels: softwareLevels,
-    areas: [
-      "Coding and Debugging",
-      "System Design",
-      "Data Structures and Algorithms",
-      "Code Quality and Testing",
-      "Technical Collaboration"
-    ]
+    keywords: ["sales", "business development", "account executive", "sdr", "bdr"],
+    areas: ["Discovery", "Pipeline Management", "Objection Handling", "Commercial Judgment", "Closing Strategy"]
   },
   {
-    keywords: ["doctor", "physician", "surgeon", "clinician", "medical officer", "nurse", "nursing", "nurse practitioner"],
-    seniorityLevels: medicalLevels,
-    areas: [
-      "Clinical Judgment",
-      "Patient Communication",
-      "Ethics and Safety",
-      "Diagnosis and Treatment Planning",
-      "Interdisciplinary Care"
-    ]
+    keywords: ["product manager", "product owner", "program manager", "project manager"],
+    areas: ["Prioritization", "Product Strategy", "Cross-Functional Delivery", "User Insight", "Metrics and Experimentation"]
   },
   {
-    keywords: ["teacher", "educator", "lecturer", "professor", "instructor", "tutor"],
-    seniorityLevels: teachingLevels,
-    areas: [
-      "Lesson Planning",
-      "Classroom Management",
-      "Student Assessment",
-      "Inclusive Teaching",
-      "Parent and Stakeholder Communication"
-    ]
+    keywords: ["software engineer", "developer", "frontend", "backend", "full stack", "engineer"],
+    areas: ["Coding and Debugging", "System Design", "Testing Discipline", "Technical Collaboration", "Tradeoff Reasoning"]
   },
   {
-    keywords: ["lawyer", "attorney", "legal counsel", "advocate", "solicitor", "paralegal"],
-    seniorityLevels: legalLevels,
-    areas: [
-      "Legal Research and Analysis",
-      "Client Advisory",
-      "Negotiation and Drafting",
-      "Ethics and Confidentiality",
-      "Case Strategy"
-    ]
+    keywords: ["marketing", "content", "growth", "brand", "demand generation"],
+    areas: ["Campaign Strategy", "Audience Insight", "Positioning", "Performance Metrics", "Creative Judgment"]
   },
   {
-    keywords: ["accountant", "finance", "financial analyst", "auditor", "controller", "bookkeeper"],
-    seniorityLevels: financeLevels,
-    areas: [
-      "Financial Reporting",
-      "Budgeting and Forecasting",
-      "Controls and Compliance",
-      "Data Analysis",
-      "Stakeholder Reporting"
-    ]
+    keywords: ["finance", "analyst", "accountant", "controller", "auditor"],
+    areas: ["Financial Analysis", "Controls and Compliance", "Forecasting", "Reporting", "Business Partnership"]
   },
   {
-    keywords: ["sales", "account executive", "business development", "customer success", "account manager", "sdr", "bdr"],
-    seniorityLevels: salesLevels,
-    areas: [
-      "Discovery and Qualification",
-      "Pipeline Management",
-      "Objection Handling",
-      "Customer Relationship Management",
-      "Commercial Negotiation"
-    ]
+    keywords: ["health", "medical", "doctor", "nurse", "clinician"],
+    areas: ["Clinical Judgment", "Patient Communication", "Safety", "Ethics", "Interdisciplinary Care"]
   },
   {
-    keywords: ["product manager", "product owner", "program manager", "project manager", "scrum master", "growth product", "platform product"],
-    seniorityLevels: productLevels,
-    areas: [
-      "Product Strategy",
-      "User Research",
-      "Prioritization",
-      "Cross-Functional Delivery",
-      "Metrics and Experimentation"
-    ]
-  },
-  {
-    keywords: ["designer", "ux", "ui", "product designer", "product design", "graphic designer", "creative director", "researcher"],
-    seniorityLevels: designLevels,
-    areas: [
-      "User-Centered Design",
-      "Visual Craft",
-      "Prototyping and Testing",
-      "Design Systems",
-      "Stakeholder Critique"
-    ]
-  },
-  {
-    keywords: ["hr", "human resources", "recruiter", "talent acquisition", "talent", "people operations"],
-    seniorityLevels: hrLevels,
-    areas: [
-      "Talent Acquisition",
-      "Employee Relations",
-      "Policy and Compliance",
-      "Performance Management",
-      "Culture and Engagement"
-    ]
-  },
-  {
-    keywords: ["penetration tester", "pentester", "ethical hacker", "red team", "application security tester"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Reconnaissance and Scoping",
-      "Exploitation Methodology",
-      "Web and Network Testing",
-      "Privilege Escalation",
-      "Reporting and Remediation Guidance"
-    ]
-  },
-  {
-    keywords: ["reverse engineer", "malware analyst", "malware reverse", "binary analysis"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Static and Dynamic Analysis",
-      "Assembly and Debugging",
-      "Malware Behavior",
-      "Tooling and Automation",
-      "Indicators and Reporting"
-    ]
-  },
-  {
-    keywords: ["incident responder", "incident response", "incident respondent", "soc analyst", "security operations"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Triage and Prioritization",
-      "Detection and Investigation",
-      "Containment and Eradication",
-      "Evidence Handling",
-      "Post-Incident Review"
-    ]
-  },
-  {
-    keywords: ["digital forensics", "forensics analyst", "dfir", "forensic analyst"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Evidence Preservation",
-      "Endpoint Forensics",
-      "Timeline Reconstruction",
-      "Chain of Custody",
-      "Findings Communication"
-    ]
-  },
-  {
-    keywords: ["cloud security", "cloud security specialist", "cloud security engineer"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Identity and Access Controls",
-      "Cloud Threat Modeling",
-      "Network and Data Protection",
-      "Misconfiguration Detection",
-      "Compliance in Cloud Environments"
-    ]
-  },
-  {
-    keywords: ["security engineer", "information security analyst", "cybersecurity analyst", "security analyst"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Threat Modeling",
-      "Security Controls",
-      "Vulnerability Management",
-      "Detection Engineering",
-      "Secure Implementation"
-    ]
-  },
-  {
-    keywords: ["vulnerability analyst", "vulnerability management", "vulnerability researcher"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Asset and Exposure Analysis",
-      "CVSS and Risk Ranking",
-      "Patch Prioritization",
-      "Validation and Retesting",
-      "Remediation Coordination"
-    ]
-  },
-  {
-    keywords: ["cybersecurity risk", "grc", "security risk analyst", "information risk"],
-    seniorityLevels: securityGovernanceLevels,
-    areas: [
-      "Risk Assessment",
-      "Control Mapping",
-      "Compliance Frameworks",
-      "Third-Party Risk",
-      "Risk Communication"
-    ]
-  },
-  {
-    keywords: ["ai security", "ml security", "model security", "llm security"],
-    seniorityLevels: securityTechnicalLevels,
-    areas: [
-      "Model Threat Modeling",
-      "Prompt Injection and Abuse Cases",
-      "Data Privacy and Leakage",
-      "Adversarial Testing",
-      "AI Governance"
-    ]
-  },
-  {
-    keywords: [
-      "machine learning",
-      "ml",
-      "deep learning",
-      "ml research",
-      "machine learning researcher",
-      "ml researcher",
-      "ml scientist",
-      "deep learning researcher",
-      "research engineer",
-      "ml ops",
-      "mle"
-    ],
-    seniorityLevels: mlResearchLevels,
-    areas: [
-      "Model Architecture and Research",
-      "Training and Optimization",
-      "Evaluation and Metrics",
-      "Experimentation and Reproducibility",
-      "Publication and Peer Review",
-      "Scalability and MLOps",
-      "Data Curation and Feature Engineering",
-      "Responsible AI and Bias Mitigation"
-    ]
-  },
-  {
-    keywords: [
-      "ai engineer",
-      "artificial intelligence engineer",
-      "llm engineer",
-      "prompt engineer",
-      "ai developer",
-      "ml engineer",
-      "machine learning engineer",
-      "deep learning engineer"
-    ],
-    seniorityLevels: engineeringLevels,
-    areas: [
-      "Model Development",
-      "Model Architecture",
-      "Training and Optimization",
-      "Evaluation and Metrics",
-      "Deployment and MLOps",
-      "Responsible AI",
-      "Prompting and LLM Design"
-    ]
-  },
-  {
-    keywords: ["cloud architect", "cloud architecture", "solutions architect", "solution architect"],
-    seniorityLevels: architectureLevels,
-    areas: [
-      "Architecture Tradeoffs",
-      "Scalability and Reliability",
-      "Cloud Cost Optimization",
-      "Security and Identity Design",
-      "Migration Strategy"
-    ]
-  },
-  {
-    keywords: ["devops", "site reliability", "sre", "platform engineer", "infrastructure engineer"],
-    seniorityLevels: engineeringLevels,
-    areas: [
-      "CI/CD and Release Management",
-      "Infrastructure as Code",
-      "Observability and Incident Response",
-      "Reliability Engineering",
-      "Cloud Operations"
-    ]
-  },
-  {
-    keywords: ["system admin", "systems admin", "systems administrator", "sysadmin", "network administrator"],
-    seniorityLevels: ["Junior Administrator", "Administrator", "Senior Administrator", "IT Manager", "Director of IT", "Head of Infrastructure"],
-    areas: [
-      "Server Administration",
-      "Identity and Access Management",
-      "Backup and Disaster Recovery",
-      "Troubleshooting and Monitoring",
-      "Patch and Change Management"
-    ]
-  },
-  {
-    keywords: [
-      "data scientist",
-      "data analyst",
-      "analytics engineer",
-      "business intelligence",
-      "bi analyst",
-      "machine learning",
-      "ml",
-      "ml scientist",
-      "machine learning scientist",
-      "ml researcher",
-      "deep learning"
-    ],
-    seniorityLevels: [
-      "Junior Data Scientist",
-      "Data Scientist",
-      "Senior Data Scientist",
-      "Lead Data Scientist",
-      "Principal Data Scientist",
-      "Head of Data Science",
-      "Research Scientist"
-    ],
-    areas: [
-      "Statistical Reasoning",
-      "Experiment Design",
-      "Data Storytelling",
-      "Modeling and ML",
-      "Model Evaluation and Deployment",
-      "Feature Engineering",
-      "Business Impact"
-    ]
-  },
-  {
-    keywords: ["marketing", "growth", "brand", "content", "demand generation"],
-    seniorityLevels: marketingLevels,
-    areas: [
-      "Campaign Strategy",
-      "Audience Insight",
-      "Positioning",
-      "Performance Metrics",
-      "Creative Judgment"
-    ]
-  },
-  {
-    keywords: ["operations", "program manager", "project manager", "chief of staff"],
-    seniorityLevels: operationsLevels,
-    areas: [
-      "Operational Planning",
-      "Risk Management",
-      "Cross-Functional Execution",
-      "Process Improvement",
-      "Decision Making"
-    ]
-  },
-  {
-    keywords: ["consultant", "management consultant", "strategy consultant"],
-    seniorityLevels: consultingLevels,
-    areas: [
-      "Problem Structuring",
-      "Client Communication",
-      "Analytical Thinking",
-      "Recommendation Quality",
-      "Change Management"
-    ]
-  },
-  {
-    keywords: ["business analyst", "systems analyst", "process analyst"],
-    seniorityLevels: analystLevels,
-    areas: [
-      "Requirements Gathering",
-      "Process Mapping",
-      "Stakeholder Communication",
-      "Data-Backed Recommendations",
-      "Solution Validation"
-    ]
-  },
-  {
-    keywords: ["architect", "civil engineer", "mechanical engineer", "electrical engineer"],
-    seniorityLevels: architectureLevels,
-    areas: [
-      "Technical Design",
-      "Safety and Standards",
-      "Project Coordination",
-      "Design Tradeoffs",
-      "Quality Assurance"
-    ]
-  },
-  {
-    keywords: ["research scientist", "scientist", "researcher"],
-    seniorityLevels: researchLevels,
-    areas: [
-      "Research Design",
-      "Experimental Rigor",
-      "Data Interpretation",
-      "Publication and Communication",
-      "Ethics and Reproducibility"
-    ]
+    keywords: ["operations", "chief of staff", "supply chain", "program"],
+    areas: ["Execution Planning", "Risk Management", "Process Improvement", "Stakeholder Coordination", "Operational Judgment"]
   }
 ];
-
-// ─── State ────────────────────────────────────────────────────────────────────
 
 let selectedLevel = "Mid-Level";
 let focusAreas = getFocusAreas("Customer Success Manager");
 let selectedCategory = focusAreas[0];
 
-let authSession: AuthSession | null = null;
-let pendingEmail = "";
-let pendingAuthPurpose: "login" | "recovery" = "login";
-let pendingGenerate = false;        // tracks whether user tried to generate before auth
-let authMode: AuthMode = "signin";
-let isAuthLoading = false;
-let isRecoverySession = false;
-let postAuthView: "app" | "dashboard" = "app";
-let selectedPhotoFile: File | null = null;
-
-// ─── DOM References ───────────────────────────────────────────────────────────
-
-const authTrigger = getElement<HTMLButtonElement>("#auth-trigger");
-const authTriggerLabel = getElement<HTMLSpanElement>("#auth-trigger-label");
-const logoutButton = getElement<HTMLButtonElement>("#logout-button");
-
-const authPanel = getElement<HTMLElement>("#auth-panel");
-const authSessionPanel = getElement<HTMLElement>("#auth-session");
-const authSessionEmail = getElement<HTMLParagraphElement>("#auth-session-email");
-const authStartPanel = getElement<HTMLElement>("#auth-start");
-const authTitle = getElement<HTMLHeadingElement>("#auth-title");
-const authForm = getElement<HTMLFormElement>("#auth-form");
-const authNameFields = getElement<HTMLElement>("#auth-name-fields");
-const authPasswordField = getElement<HTMLElement>("#auth-password-field");
-const firstNameInput = getElement<HTMLInputElement>("#first-name");
-const lastNameInput = getElement<HTMLInputElement>("#last-name");
-const authEmailInput = getElement<HTMLInputElement>("#auth-email");
-const authPasswordInput = getElement<HTMLInputElement>("#auth-password");
-const authSubmitButton = getElement<HTMLButtonElement>("#auth-submit");
-const authModeToggle = getElement<HTMLButtonElement>("#auth-mode-toggle");
-const forgotPasswordButton = getElement<HTMLButtonElement>("#forgot-password-button");
-const authStatus = getElement<HTMLDivElement>("#auth-status");
-const googleButton = getElement<HTMLDivElement>("#google-button");
-
-const codePanel = getElement<HTMLElement>("#code-panel");
-const codeForm = getElement<HTMLFormElement>("#code-form");
-const codeInput = getElement<HTMLInputElement>("#auth-code");
-const codeSubmitButton = getElement<HTMLButtonElement>("#code-submit");
-const codeEmail = getElement<HTMLSpanElement>("#code-email");
-const codeStatus = getElement<HTMLDivElement>("#code-status");
-const codeResendButton = getElement<HTMLButtonElement>("#code-resend");
-const codeBackButton = getElement<HTMLButtonElement>("#code-back");
-
-const topbar = getElement<HTMLElement>(".topbar");
-const dashboardPanel = getElement<HTMLElement>("#dashboard-panel");
-const dashboardCloseButton = getElement<HTMLButtonElement>("#dashboard-close");
-const profilePhotoInput = getElement<HTMLInputElement>("#profile-photo-input");
-const profilePhotoUploadButton = getElement<HTMLButtonElement>("#profile-photo-upload");
-const profilePhotoPreview = getElement<HTMLImageElement>("#profile-photo-preview");
-const profilePhotoPlaceholder = getElement<HTMLElement>("#profile-photo-placeholder");
-const profilePhotoStatus = getElement<HTMLDivElement>("#profile-photo-status");
-const passwordForm = getElement<HTMLFormElement>("#password-form");
-const currentPasswordField = getElement<HTMLElement>("#current-password-field");
-const currentPasswordInput = getElement<HTMLInputElement>("#current-password");
-const newPasswordInput = getElement<HTMLInputElement>("#new-password");
-const confirmPasswordInput = getElement<HTMLInputElement>("#confirm-password");
-const passwordStatus = getElement<HTMLDivElement>("#password-status");
-const passwordSubmitButton = getElement<HTMLButtonElement>("#password-submit");
-const deleteAccountButton = getElement<HTMLButtonElement>("#delete-account-button");
-const deleteStatus = getElement<HTMLDivElement>("#delete-status");
-const appPanel = getElement<HTMLElement>("#app-panel");
-const form = getElement<HTMLFormElement>("#question-form");
 const input = getElement<HTMLInputElement>("#job-title");
+const form = getElement<HTMLFormElement>("#question-form");
 const submitButton = getElement<HTMLButtonElement>("#generate-button");
 const statusMessage = getElement<HTMLDivElement>("#status");
 const loadingPanel = getElement<HTMLElement>("#loading-panel");
@@ -581,231 +82,8 @@ const preparedCount = getElement<HTMLSpanElement>("#prepared-count");
 const levelOptions = getElement<HTMLDivElement>("#level-options");
 const categoryOptions = getElement<HTMLDivElement>("#category-options");
 
-// ─── Initialise ───────────────────────────────────────────────────────────────
-
 refreshOptionGroups();
 updateGenerateButton();
-setAuthMode("signin");
-updatePasswordFormMode();
-
-// ─── Event Listeners ──────────────────────────────────────────────────────────
-
-// When logged in, the auth-trigger opens the dashboard.
-// When logged out, it opens the sign-in panel.
-authTrigger.addEventListener("click", () => {
-  if (authSession) {
-    openDashboard();
-  } else {
-    postAuthView = "app";
-    openAuthPanel();
-  }
-});
-
-authModeToggle.addEventListener("click", () => {
-  if (authMode === "recover") {
-    setAuthMode("signin");
-    return;
-  }
-
-  setAuthMode(authMode === "signup" ? "signin" : "signup");
-});
-
-forgotPasswordButton.addEventListener("click", () => {
-  setAuthMode("recover");
-  openAuthPanel("Enter your email and we’ll send a password reset code.", true);
-});
-
-logoutButton.addEventListener("click", () => {
-  void handleLogout();
-});
-
-dashboardCloseButton.addEventListener("click", () => {
-  closeDashboard();
-});
-
-profilePhotoInput.addEventListener("change", () => {
-  const file = profilePhotoInput.files?.[0] || null;
-  selectedPhotoFile = file;
-  setProfilePhotoPreview(file);
-});
-
-profilePhotoUploadButton.addEventListener("click", () => {
-  void handlePhotoUpload();
-});
-
-passwordForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  void handlePasswordChange();
-});
-
-deleteAccountButton.addEventListener("click", () => {
-  void handleDeleteAccount();
-});
-
-authForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setAuthStatus("", "idle");
-
-  const firstName = firstNameInput.value.trim();
-  const lastName = lastNameInput.value.trim();
-  const email = authEmailInput.value.trim();
-  const password = authPasswordInput.value;
-
-  if (!email) {
-    setAuthStatus("Enter your email address.", "error");
-    return;
-  }
-
-  if (authMode === "recover") {
-    // Recovery only needs an existing email address.
-  } else if (!password || (authMode === "signup" && (!firstName || !lastName))) {
-    setAuthStatus(
-      authMode === "signup" ? "Complete all fields to continue." : "Enter your email and password.",
-      "error"
-    );
-    return;
-  }
-
-  setAuthLoading(true);
-
-  try {
-    const endpoint = authMode === "recover" ? "/api/auth/forgot-password" : "/api/auth/start";
-    const response = await fetch(getApiUrl(endpoint), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        mode: authMode,
-        firstName,
-        lastName,
-        email,
-        password
-      })
-    });
-
-    const data = (await response.json()) as AuthStartResponse | ErrorResponse;
-
-    if (!response.ok || "error" in data) {
-      // No account found during sign-in → switch to sign-up form automatically
-      if (response.status === 404 && authMode === "signin") {
-        setAuthMode("signup");
-      }
-      // Account already exists during sign-up → switch to sign-in form automatically
-      if (response.status === 409 && authMode === "signup") {
-        setAuthMode("signin");
-      }
-      throw new Error("error" in data ? data.error : "Unable to start sign-in.");
-    }
-
-    pendingEmail = data.email;
-    authPasswordInput.value = "";
-    pendingAuthPurpose = authMode === "recover" ? "recovery" : "login";
-    showCodePanel(data.maskedEmail, pendingAuthPurpose);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to start sign-in.";
-    setAuthStatus(message, "error");
-  } finally {
-    setAuthLoading(false);
-  }
-});
-
-codeForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  setCodeStatus("", "idle");
-
-  const email = pendingEmail.trim();
-  const code = codeInput.value.trim();
-
-  if (!email) {
-    setCodeStatus("Missing email. Please start again.", "error");
-    openAuthPanel();
-    return;
-  }
-
-  if (!/^[0-9]{6}$/.test(code)) {
-    setCodeStatus("Enter the 6-digit code.", "error");
-    return;
-  }
-
-  setCodeLoading(true);
-
-  try {
-    const response = await fetch(getApiUrl("/api/auth/verify"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email, code })
-    });
-
-    const data = (await response.json()) as AuthVerifyResponse | ErrorResponse;
-    if (!response.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Unable to verify code.");
-    }
-
-    // Apply session — this internally calls closeAuthPanel() and shows the right panel.
-    applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
-    codeInput.value = "";
-
-    // If the user was trying to generate before auth, resume that now.
-    if (pendingGenerate) {
-      pendingGenerate = false;
-      form.requestSubmit();
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to verify code.";
-    setCodeStatus(message, "error");
-  } finally {
-    setCodeLoading(false);
-  }
-});
-
-codeResendButton.addEventListener("click", async () => {
-  if (!pendingEmail) {
-    openAuthPanel();
-    return;
-  }
-
-  setCodeStatus("Sending a new code...", "idle");
-
-  try {
-    const endpoint = pendingAuthPurpose === "recovery" ? "/api/auth/forgot-password" : "/api/auth/request-code";
-    const response = await fetch(getApiUrl(endpoint), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ email: pendingEmail })
-    });
-
-    const data = (await response.json()) as AuthStartResponse | ErrorResponse;
-    if (!response.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Unable to resend code.");
-    }
-
-    showCodePanel(data.maskedEmail, pendingAuthPurpose);
-    setCodeStatus("Code sent. Check your inbox.", "success");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to resend code.";
-    setCodeStatus(message, "error");
-  }
-});
-
-codeBackButton.addEventListener("click", () => {
-  pendingEmail = "";
-  codeInput.value = "";
-  openAuthPanel(undefined, true);
-});
-
-window.addEventListener("load", () => {
-  initGoogleButton();
-});
-
-void initializeAuth();
-
-input.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    form.requestSubmit();
-  }
-});
 
 input.addEventListener("input", () => {
   focusAreas = getFocusAreas(input.value);
@@ -826,22 +104,12 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  const hasSession = await ensureAuthSession();
-  if (!hasSession) {
-    // Intercept and remember the intent — resume after auth.
-    pendingGenerate = true;
-    postAuthView = "app";
-    setStatus("Sign in to generate questions.", "error");
-    openAuthPanel("Sign in to generate questions.");
-    return;
-  }
-
   setLoading(true);
-  setStatus("", "idle");
+  setStatus("Generating interview questions...", "idle");
   hideResults();
 
   try {
-    const response = await fetchWithAuth(getApiUrl("/api/interview-questions"), {
+    const response = await fetch(getApiUrl("/api/interview-questions"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -855,19 +123,13 @@ form.addEventListener("submit", async (event) => {
 
     const data = (await response.json()) as QuestionsResponse | ErrorResponse;
 
-    if (response.status === 401) {
-      setStatus("Session expired. Please sign in again.", "error");
-      openAuthPanel("Session expired. Please sign in again.");
-      return;
-    }
-
     if (!response.ok || "error" in data) {
       throw new Error("error" in data ? data.error : "Request failed.");
     }
 
     const questions = normalizeQuestions(data.questions);
     renderQuestions(questions);
-    setStatus("", "success");
+    setStatus(data.id ? `Saved set #${data.id}.` : "Generated successfully.", "success");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed.";
     setStatus(message, "error");
@@ -877,13 +139,12 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
-// ─── Option Groups ────────────────────────────────────────────────────────────
-
 function refreshOptionGroups() {
-  renderOptions(levelOptions, levels, selectedLevel, (level) => {
+  renderOptions(levelOptions, levelOptionsList, selectedLevel, (level) => {
     selectedLevel = level;
     refreshOptionGroups();
   });
+
   renderOptions(categoryOptions, focusAreas, selectedCategory, (category) => {
     selectedCategory = category;
     refreshOptionGroups();
@@ -895,6 +156,7 @@ function getFocusAreas(role: string) {
   const matchingProfile = focusProfiles.find((profile) =>
     profile.keywords.some((keyword) => normalizedRole.includes(normalizeRole(keyword)))
   );
+
   return matchingProfile?.areas || defaultFocusAreas;
 }
 
@@ -922,8 +184,6 @@ function renderOptions(
     container.appendChild(button);
   });
 }
-
-// ─── Questions ────────────────────────────────────────────────────────────────
 
 function renderQuestions(questions: GeneratedQuestion[]) {
   questionsContainer.innerHTML = "";
@@ -957,6 +217,7 @@ function renderQuestions(questions: GeneratedQuestion[]) {
 
 function normalizeQuestions(questions: Array<string | GeneratedQuestion>) {
   const fallbackDifficulties: Difficulty[] = ["Easy", "Medium", "Hard"];
+
   return questions.map((item, index) => {
     if (typeof item === "string") {
       return {
@@ -964,6 +225,7 @@ function normalizeQuestions(questions: Array<string | GeneratedQuestion>) {
         difficulty: fallbackDifficulties[index % fallbackDifficulties.length]
       };
     }
+
     return {
       question: item.question,
       difficulty: item.difficulty || fallbackDifficulties[index % fallbackDifficulties.length]
@@ -976,8 +238,6 @@ function hideResults() {
   preparedCount.textContent = "0 prepared";
   resultsPanel.hidden = true;
 }
-
-// ─── Status / Loading ─────────────────────────────────────────────────────────
 
 function setStatus(message: string, type: "idle" | "success" | "error") {
   statusMessage.textContent = message;
@@ -994,17 +254,6 @@ function updateGenerateButton(isLoading = false) {
   submitButton.disabled = isLoading || !input.value.trim();
 }
 
-function setPanelStatus(
-  element: HTMLDivElement,
-  message: string,
-  type: "idle" | "success" | "error"
-) {
-  element.textContent = message;
-  element.dataset.type = type;
-}
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
 function getElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
   if (!element) {
@@ -1015,474 +264,4 @@ function getElement<T extends HTMLElement>(selector: string): T {
 
 function getApiUrl(path: string) {
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
-}
-
-// ─── Auth Session ─────────────────────────────────────────────────────────────
-
-async function initializeAuth() {
-  updateAuthTrigger();
-  const refreshed = await refreshSession();
-  if (!refreshed) {
-    clearAuthSession();
-    closeAuthPanel();
-  }
-}
-
-async function ensureAuthSession() {
-  if (authSession) return true;
-  return refreshSession();
-}
-
-async function refreshSession() {
-  try {
-    const response = await fetch(getApiUrl("/api/auth/refresh"), {
-      method: "POST",
-      credentials: "include"
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as AuthRefreshResponse;
-    applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function fetchWithAuth(input: RequestInfo | URL, init: RequestInit) {
-  const headers = new Headers(init.headers ?? {});
-  if (authSession?.token) {
-    headers.set("Authorization", `Bearer ${authSession.token}`);
-  }
-
-  const response = await fetch(input, { ...init, headers, credentials: "include" });
-  if (response.status !== 401) return response;
-
-  const refreshed = await refreshSession();
-  if (!refreshed || !authSession?.token) return response;
-
-  const retryHeaders = new Headers(init.headers ?? {});
-  retryHeaders.set("Authorization", `Bearer ${authSession.token}`);
-  return fetch(input, { ...init, headers: retryHeaders, credentials: "include" });
-}
-
-function applyAuthSession(session: AuthSession) {
-  authSession = session;
-  isRecoverySession = session.sessionPurpose === "recovery";
-  pendingEmail = session.user.email;
-  authSessionEmail.textContent = `Signed in as ${session.user.email}`;
-  authSessionPanel.hidden = true;
-  updateAuthTrigger();
-  updateDashboardView();
-  updatePasswordFormMode();
-  if (isRecoverySession) {
-    postAuthView = "dashboard";
-  }
-  closeAuthPanel();
-}
-
-function clearAuthSession() {
-  authSession = null;
-  pendingEmail = "";
-  pendingGenerate = false;
-  pendingAuthPurpose = "login";
-  isRecoverySession = false;
-  authSessionEmail.textContent = "Signed in.";
-  authSessionPanel.hidden = true;
-  dashboardPanel.hidden = true;
-  updateAuthTrigger();
-  updatePasswordFormMode();
-}
-
-function updateAuthTrigger() {
-  if (authSession) {
-    // Show the user's first name on the trigger; clicking it opens the dashboard.
-    authTriggerLabel.textContent = authSession.user.firstName || "Account";
-    logoutButton.hidden = false;
-  } else {
-    authTriggerLabel.textContent = "Sign in";
-    logoutButton.hidden = true;
-  }
-}
-
-// ─── Auth Panel (overlay modal) ───────────────────────────────────────────────
-
-function openAuthPanel(message?: string, keepCurrentMode = false) {
-  authPanel.hidden = false;
-  document.body.classList.add("auth-open");
-  topbar.hidden = true;
-  dashboardPanel.hidden = true;
-  appPanel.hidden = true;
-  window.location.hash = "auth-panel";
-  authPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  if (authSession) {
-    authSessionPanel.hidden = false;
-    authStartPanel.hidden = true;
-    codePanel.hidden = true;
-    return;
-  }
-
-  if (!keepCurrentMode) {
-    setAuthMode("signin");
-  }
-  authSessionPanel.hidden = true;
-  authStartPanel.hidden = false;
-  codePanel.hidden = true;
-  setAuthStatus(message || "", message ? "error" : "idle");
-  if (authMode === "signup") {
-    firstNameInput.focus();
-  } else {
-    authEmailInput.focus();
-  }
-}
-
-function showCodePanel(maskedEmail: string, purpose: "login" | "recovery" = "login") {
-  authPanel.hidden = false;
-  document.body.classList.add("auth-open");
-  topbar.hidden = true;
-  dashboardPanel.hidden = true;
-  appPanel.hidden = true;
-  authSessionPanel.hidden = true;
-  authStartPanel.hidden = true;
-  codePanel.hidden = false;
-  pendingAuthPurpose = purpose;
-  codeEmail.textContent = maskedEmail || pendingEmail;
-  setCodeStatus("", "idle");
-  codeInput.focus();
-}
-
-function closeAuthPanel() {
-  authPanel.hidden = true;
-  document.body.classList.remove("auth-open");
-  topbar.hidden = false;
-
-  if (postAuthView === "dashboard") {
-    dashboardPanel.hidden = false;
-    appPanel.hidden = true;
-  } else {
-    dashboardPanel.hidden = true;
-    appPanel.hidden = false;
-  }
-
-  authStartPanel.hidden = false;
-  codePanel.hidden = true;
-  setAuthStatus("", "idle");
-  setCodeStatus("", "idle");
-  postAuthView = "app";
-}
-
-function updatePasswordFormMode() {
-  currentPasswordField.hidden = isRecoverySession;
-  currentPasswordInput.required = !isRecoverySession;
-  passwordSubmitButton.textContent = isRecoverySession ? "Set new password" : "Update password";
-}
-
-function setAuthStatus(message: string, type: "idle" | "success" | "error") {
-  authStatus.textContent = message;
-  authStatus.dataset.type = type;
-}
-
-function setCodeStatus(message: string, type: "idle" | "success" | "error") {
-  codeStatus.textContent = message;
-  codeStatus.dataset.type = type;
-}
-
-function setAuthLoading(isLoading: boolean) {
-  isAuthLoading = isLoading;
-  authSubmitButton.disabled = isLoading;
-  authSubmitButton.textContent = isLoading ? "Continuing..." : getAuthSubmitText();
-}
-
-function setCodeLoading(isLoading: boolean) {
-  codeSubmitButton.disabled = isLoading;
-  codeSubmitButton.textContent = isLoading ? "Verifying..." : "Verify";
-}
-
-function setAuthMode(mode: AuthMode) {
-  authMode = mode;
-  authNameFields.hidden = mode !== "signup";
-  authPasswordField.hidden = mode === "recover";
-  firstNameInput.required = mode === "signup";
-  lastNameInput.required = mode === "signup";
-  authPasswordInput.required = mode !== "recover";
-  authTitle.textContent =
-    mode === "signup"
-      ? "Create your account"
-      : mode === "recover"
-        ? "Recover your account"
-        : "Sign in to continue";
-  authModeToggle.textContent =
-    mode === "signup"
-      ? "Already have an account? Sign in"
-      : mode === "recover"
-        ? "Back to sign in"
-        : "New here? Create account";
-  forgotPasswordButton.hidden = mode !== "signin";
-  if (!isAuthLoading) {
-    authSubmitButton.textContent = getAuthSubmitText();
-  }
-  if (mode !== "signup") {
-    firstNameInput.value = "";
-    lastNameInput.value = "";
-  }
-  if (mode !== "recover") {
-    pendingAuthPurpose = "login";
-  }
-}
-
-function getAuthSubmitText() {
-  if (authMode === "signup") return "Create account";
-  if (authMode === "recover") return "Send code";
-  return "Sign in";
-}
-
-// ─── Dashboard ────────────────────────────────────────────────────────────────
-
-function openDashboard() {
-  if (!authSession) {
-    postAuthView = "dashboard";
-    openAuthPanel("Sign in to access your dashboard.");
-    return;
-  }
-
-  authPanel.hidden = true;
-  document.body.classList.remove("auth-open");
-  topbar.hidden = false;
-  dashboardPanel.hidden = false;
-  appPanel.hidden = true;
-  updateDashboardView();
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function closeDashboard() {
-  dashboardPanel.hidden = true;
-  appPanel.hidden = false;
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function updateDashboardView() {
-  if (!authSession) return;
-  const imageUrl = authSession.user.profileImageUrl || "";
-  if (imageUrl) {
-    profilePhotoPreview.src = imageUrl;
-    profilePhotoPreview.hidden = false;
-    profilePhotoPlaceholder.hidden = true;
-  } else {
-    profilePhotoPreview.hidden = true;
-    profilePhotoPlaceholder.hidden = false;
-  }
-
-  updatePasswordFormMode();
-}
-
-function setProfilePhotoPreview(file: File | null) {
-  const existingUrl = profilePhotoPreview.dataset.previewUrl;
-  if (existingUrl) {
-    URL.revokeObjectURL(existingUrl);
-    delete profilePhotoPreview.dataset.previewUrl;
-  }
-
-  if (file) {
-    const url = URL.createObjectURL(file);
-    profilePhotoPreview.src = url;
-    profilePhotoPreview.dataset.previewUrl = url;
-    profilePhotoPreview.hidden = false;
-    profilePhotoPlaceholder.hidden = true;
-    return;
-  }
-
-  updateDashboardView();
-}
-
-async function handlePhotoUpload() {
-  if (!authSession) {
-    postAuthView = "dashboard";
-    openAuthPanel("Sign in to update your profile photo.");
-    return;
-  }
-
-  if (!selectedPhotoFile) {
-    setPanelStatus(profilePhotoStatus, "Choose a photo to upload.", "error");
-    return;
-  }
-
-  setPanelStatus(profilePhotoStatus, "Uploading...", "idle");
-
-  try {
-    const formData = new FormData();
-    formData.append("file", selectedPhotoFile);
-
-    const response = await fetchWithAuth(getApiUrl("/api/account/photo"), {
-      method: "POST",
-      body: formData
-    });
-
-    const data = (await response.json()) as { user: AuthUser } | ErrorResponse;
-    if (!response.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Unable to update photo.");
-    }
-
-    authSession.user = data.user;
-    selectedPhotoFile = null;
-    updateDashboardView();
-    setPanelStatus(profilePhotoStatus, "Photo updated.", "success");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update photo.";
-    setPanelStatus(profilePhotoStatus, message, "error");
-  }
-}
-
-async function handlePasswordChange() {
-  if (!authSession) {
-    postAuthView = "dashboard";
-    openAuthPanel("Sign in to update your password.");
-    return;
-  }
-
-  const currentPassword = currentPasswordInput.value;
-  const newPassword = newPasswordInput.value;
-  const confirmPassword = confirmPasswordInput.value;
-
-  if (!newPassword || !confirmPassword || (!isRecoverySession && !currentPassword)) {
-    setPanelStatus(passwordStatus, "Complete all password fields.", "error");
-    return;
-  }
-  if (newPassword.length < 8) {
-    setPanelStatus(passwordStatus, "New password must be at least 8 characters.", "error");
-    return;
-  }
-  if (newPassword !== confirmPassword) {
-    setPanelStatus(passwordStatus, "Passwords do not match.", "error");
-    return;
-  }
-
-  setPanelStatus(passwordStatus, "Updating password...", "idle");
-
-  try {
-    const response = await fetchWithAuth(getApiUrl("/api/account/password"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(isRecoverySession ? { newPassword } : { currentPassword, newPassword })
-    });
-
-    const data = (await response.json()) as AuthVerifyResponse | { status?: string } | ErrorResponse;
-    if (!response.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Unable to update password.");
-    }
-    if ("token" in data) {
-      applyAuthSession({ token: data.token, user: data.user, sessionPurpose: data.sessionPurpose });
-    }
-
-    currentPasswordInput.value = "";
-    newPasswordInput.value = "";
-    confirmPasswordInput.value = "";
-    setPanelStatus(passwordStatus, "Password updated.", "success");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to update password.";
-    setPanelStatus(passwordStatus, message, "error");
-  }
-}
-
-async function handleDeleteAccount() {
-  if (!authSession) {
-    postAuthView = "dashboard";
-    openAuthPanel("Sign in to delete your account.");
-    return;
-  }
-
-  if (!window.confirm("Delete your account? This cannot be undone.")) return;
-
-  setPanelStatus(deleteStatus, "Deleting account...", "idle");
-
-  try {
-    const response = await fetchWithAuth(getApiUrl("/api/account/delete"), {
-      method: "POST",
-      credentials: "include"
-    });
-
-    const data = (await response.json()) as { status?: string } | ErrorResponse;
-    if (!response.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Unable to delete account.");
-    }
-
-    setPanelStatus(deleteStatus, "Account deleted.", "success");
-    clearAuthSession();
-    dashboardPanel.hidden = true;
-    appPanel.hidden = false;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to delete account.";
-    setPanelStatus(deleteStatus, message, "error");
-  }
-}
-
-// ─── Logout ───────────────────────────────────────────────────────────────────
-
-async function handleLogout() {
-  try {
-    await fetch(getApiUrl("/api/auth/logout"), {
-      method: "POST",
-      credentials: "include"
-    });
-  } catch {
-    // Ignore logout errors.
-  } finally {
-    clearAuthSession();
-    dashboardPanel.hidden = true;
-    appPanel.hidden = false;
-    hideResults();
-    setStatus("", "idle");
-    closeAuthPanel();
-  }
-}
-
-// ─── Google Sign-in ───────────────────────────────────────────────────────────
-
-function initGoogleButton() {
-  if (!googleClientId) {
-    googleButton.hidden = true;
-    return;
-  }
-
-  const googleApi = (window as Window & { google?: any }).google;
-  if (!googleApi?.accounts?.id) return;
-
-  googleApi.accounts.id.initialize({
-    client_id: googleClientId,
-    callback: handleGoogleCredential
-  });
-
-  googleApi.accounts.id.renderButton(googleButton, {
-    theme: "outline",
-    size: "large",
-    shape: "pill",
-    text: "continue_with"
-  });
-}
-
-async function handleGoogleCredential(response: { credential: string }) {
-  setAuthStatus("Checking Google account...", "idle");
-  setAuthLoading(true);
-  openAuthPanel();
-
-  try {
-    const apiResponse = await fetch(getApiUrl("/api/auth/google"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ credential: response.credential })
-    });
-
-    const data = (await apiResponse.json()) as AuthStartResponse | ErrorResponse;
-    if (!apiResponse.ok || "error" in data) {
-      throw new Error("error" in data ? data.error : "Google sign-in failed.");
-    }
-
-    pendingEmail = data.email;
-    showCodePanel(data.maskedEmail, "login");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Google sign-in failed.";
-    setAuthStatus(message, "error");
-  } finally {
-    setAuthLoading(false);
-  }
 }

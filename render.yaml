@@ -12,31 +12,9 @@ services:
         value: 3.12.2
       - key: DATABASE_URL
         sync: false
-      - key: TINYFISH_API_KEY
+      - key: GEMINI_API_KEY
         sync: false
       - key: FRONTEND_ORIGIN
-        sync: false
-      - key: AUTH_SECRET
-        sync: false
-      - key: AUTH_ACCESS_TTL_MINUTES
-        sync: false
-      - key: AUTH_CODE_TTL_MINUTES
-        sync: false
-      - key: REFRESH_TOKEN_TTL_DAYS
-        sync: false
-      - key: COOKIE_SECURE
-        sync: false
-      - key: COOKIE_SAMESITE
-        sync: false
-      - key: COOKIE_DOMAIN
-        sync: false
-      - key: BREVO_API_KEY
-        sync: false
-      - key: BREVO_SENDER_EMAIL
-        sync: false
-      - key: BREVO_SENDER_NAME
-        sync: false
-      - key: GOOGLE_CLIENT_ID
         sync: false
       - key: RENDER_DEPLOY_HOOK_URL
         sync: false
