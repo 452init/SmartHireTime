@@ -17,58 +17,143 @@ type ErrorResponse = {
   error: string;
 };
 
-type FocusProfile = {
+type ProfessionProfile = {
   keywords: string[];
+  seniorityLevels: string[];
   areas: string[];
 };
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
-const levelOptionsList = ["Junior", "Mid-Level", "Senior", "Executive"];
-const defaultFocusAreas = [
-  "Role-Specific Judgment",
-  "Problem Solving",
-  "Communication",
-  "Collaboration",
-  "Decision Making"
-];
 
-const focusProfiles: FocusProfile[] = [
+const defaultProfile: ProfessionProfile = {
+  keywords: [],
+  seniorityLevels: ["Entry-Level", "Associate", "Mid-Level", "Senior", "Lead", "Manager"],
+  areas: [
+    "Role-Specific Skills",
+    "Communication and Collaboration",
+    "Problem Solving",
+    "Professional Judgment",
+    "Career Motivation"
+  ]
+};
+
+const professionProfiles: ProfessionProfile[] = [
   {
-    keywords: ["customer success", "account manager", "renewals", "support"],
-    areas: ["Customer Communication", "Retention Strategy", "Escalation Handling", "Value Realization", "Stakeholder Alignment"]
+    keywords: ["ciso", "chief information security officer", "security executive"],
+    seniorityLevels: ["Director", "Senior Director", "VP Security", "CISO", "Chief Security Officer", "Board Advisor"],
+    areas: [
+      "Security Strategy and Governance",
+      "Board and Executive Communication",
+      "Risk Appetite and Prioritization",
+      "Incident Leadership",
+      "Compliance and Program Maturity"
+    ]
   },
   {
-    keywords: ["sales", "business development", "account executive", "sdr", "bdr"],
-    areas: ["Discovery", "Pipeline Management", "Objection Handling", "Commercial Judgment", "Closing Strategy"]
+    keywords: ["software engineer", "developer", "frontend", "backend", "full stack", "programmer"],
+    seniorityLevels: ["Intern", "Junior Engineer", "Mid-Level Engineer", "Senior Engineer", "Staff Engineer", "Principal Engineer"],
+    areas: [
+      "Coding and Debugging",
+      "System Design",
+      "Data Structures and Algorithms",
+      "Code Quality and Testing",
+      "Technical Collaboration"
+    ]
   },
   {
-    keywords: ["product manager", "product owner", "program manager", "project manager"],
-    areas: ["Prioritization", "Product Strategy", "Cross-Functional Delivery", "User Insight", "Metrics and Experimentation"]
+    keywords: ["doctor", "physician", "surgeon", "clinician", "medical officer", "nurse", "nursing"],
+    seniorityLevels: ["Student", "Resident", "Fellow", "Attending", "Consultant", "Medical Director"],
+    areas: [
+      "Clinical Judgment",
+      "Patient Communication",
+      "Ethics and Safety",
+      "Diagnosis and Treatment Planning",
+      "Interdisciplinary Care"
+    ]
   },
   {
-    keywords: ["software engineer", "developer", "frontend", "backend", "full stack", "engineer"],
-    areas: ["Coding and Debugging", "System Design", "Testing Discipline", "Technical Collaboration", "Tradeoff Reasoning"]
+    keywords: ["teacher", "educator", "lecturer", "professor", "instructor", "tutor"],
+    seniorityLevels: ["Trainee Teacher", "Classroom Teacher", "Senior Teacher", "Department Lead", "Principal", "Academic Director"],
+    areas: [
+      "Lesson Planning",
+      "Classroom Management",
+      "Student Assessment",
+      "Inclusive Teaching",
+      "Parent and Stakeholder Communication"
+    ]
   },
   {
-    keywords: ["marketing", "content", "growth", "brand", "demand generation"],
-    areas: ["Campaign Strategy", "Audience Insight", "Positioning", "Performance Metrics", "Creative Judgment"]
+    keywords: ["lawyer", "attorney", "legal counsel", "advocate", "solicitor", "paralegal"],
+    seniorityLevels: ["Paralegal", "Junior Associate", "Associate", "Senior Associate", "Counsel", "Partner"],
+    areas: [
+      "Legal Research and Analysis",
+      "Client Advisory",
+      "Negotiation and Drafting",
+      "Ethics and Confidentiality",
+      "Case Strategy"
+    ]
   },
   {
-    keywords: ["finance", "analyst", "accountant", "controller", "auditor"],
-    areas: ["Financial Analysis", "Controls and Compliance", "Forecasting", "Reporting", "Business Partnership"]
+    keywords: ["accountant", "finance", "financial analyst", "auditor", "controller", "bookkeeper"],
+    seniorityLevels: ["Junior Analyst", "Analyst", "Senior Analyst", "Manager", "Controller", "Finance Director"],
+    areas: [
+      "Financial Reporting",
+      "Budgeting and Forecasting",
+      "Controls and Compliance",
+      "Data Analysis",
+      "Stakeholder Reporting"
+    ]
   },
   {
-    keywords: ["health", "medical", "doctor", "nurse", "clinician"],
-    areas: ["Clinical Judgment", "Patient Communication", "Safety", "Ethics", "Interdisciplinary Care"]
+    keywords: ["sales", "account executive", "business development", "customer success", "account manager"],
+    seniorityLevels: ["Sales Development Rep", "Account Executive", "Senior Account Executive", "Account Manager", "Sales Manager", "Revenue Leader"],
+    areas: [
+      "Discovery and Qualification",
+      "Pipeline Management",
+      "Objection Handling",
+      "Customer Relationship Management",
+      "Commercial Negotiation"
+    ]
   },
   {
-    keywords: ["operations", "chief of staff", "supply chain", "program"],
-    areas: ["Execution Planning", "Risk Management", "Process Improvement", "Stakeholder Coordination", "Operational Judgment"]
+    keywords: ["product manager", "product owner", "program manager", "project manager", "scrum master"],
+    seniorityLevels: ["Associate PM", "Product Manager", "Senior Product Manager", "Group Product Manager", "Director of Product", "VP Product"],
+    areas: [
+      "Product Strategy",
+      "User Research",
+      "Prioritization",
+      "Cross-Functional Delivery",
+      "Metrics and Experimentation"
+    ]
+  },
+  {
+    keywords: ["designer", "ux", "ui", "product designer", "graphic designer", "creative director"],
+    seniorityLevels: ["Junior Designer", "Designer", "Senior Designer", "Lead Designer", "Design Manager", "Creative Director"],
+    areas: [
+      "User-Centered Design",
+      "Visual Craft",
+      "Prototyping and Testing",
+      "Design Systems",
+      "Stakeholder Critique"
+    ]
+  },
+  {
+    keywords: ["hr", "human resources", "recruiter", "talent acquisition", "people operations"],
+    seniorityLevels: ["HR Assistant", "Recruiter", "HR Generalist", "Senior HR Partner", "People Manager", "CHRO"],
+    areas: [
+      "Talent Acquisition",
+      "Employee Relations",
+      "Policy and Compliance",
+      "Performance Management",
+      "Culture and Engagement"
+    ]
   }
 ];
 
-let selectedLevel = "Mid-Level";
-let focusAreas = getFocusAreas("Customer Success Manager");
+let activeProfile = getProfessionProfile("Customer Success Manager");
+let levelOptionsList = activeProfile.seniorityLevels;
+let selectedLevel = levelOptionsList[0];
+let focusAreas = activeProfile.areas;
 let selectedCategory = focusAreas[0];
 
 const input = getElement<HTMLInputElement>("#job-title");
@@ -86,7 +171,12 @@ refreshOptionGroups();
 updateGenerateButton();
 
 input.addEventListener("input", () => {
-  focusAreas = getFocusAreas(input.value);
+  activeProfile = getProfessionProfile(input.value);
+  levelOptionsList = activeProfile.seniorityLevels;
+  focusAreas = activeProfile.areas;
+  if (!levelOptionsList.includes(selectedLevel)) {
+    selectedLevel = levelOptionsList[0];
+  }
   if (!focusAreas.includes(selectedCategory)) {
     selectedCategory = focusAreas[0];
   }
@@ -129,7 +219,7 @@ form.addEventListener("submit", async (event) => {
 
     const questions = normalizeQuestions(data.questions);
     renderQuestions(questions);
-    setStatus(data.id ? `Saved set #${data.id}.` : "Generated successfully.", "success");
+    setStatus("Success", "success");
   } catch (error) {
     const message = error instanceof Error ? error.message : "Request failed.";
     setStatus(message, "error");
@@ -151,13 +241,13 @@ function refreshOptionGroups() {
   });
 }
 
-function getFocusAreas(role: string) {
+function getProfessionProfile(role: string) {
   const normalizedRole = normalizeRole(role);
-  const matchingProfile = focusProfiles.find((profile) =>
+  const matchingProfile = professionProfiles.find((profile) =>
     profile.keywords.some((keyword) => normalizedRole.includes(normalizeRole(keyword)))
   );
 
-  return matchingProfile?.areas || defaultFocusAreas;
+  return matchingProfile || defaultProfile;
 }
 
 function normalizeRole(role: string) {
