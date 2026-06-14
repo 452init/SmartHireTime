@@ -50,8 +50,8 @@ CORS(app, resources={r"/api/*": {"origins": configured_origins}}, allow_headers=
 
 if not has_configured_origins:
     print("FRONTEND_ORIGIN is not set. Using default frontend origins for CORS.")
-if not CONFIG["gemini_api_key"]:
-    print("GEMINI_API_KEY is not set. Add it to your .env file before generating questions.")
+if not CONFIG["mistral_api_key"]:
+    print("MISTRAL_API_KEY is not set. Add it to your .env file before generating questions.")
 
 
 @app.get("/api/health")
@@ -105,7 +105,7 @@ def create_interview_questions():
         prompt = build_interview_question_prompt(
             job_title, level, category, question_count, focus_areas
         )
-        ai_text = call_ai_api(prompt, CONFIG["gemini_api_key"], question_count)
+        ai_text = call_ai_api(prompt, CONFIG["mistral_api_key"], question_count)
         questions = parse_questions(ai_text, question_count)
         question_set_id = save_question_set(CONFIG["database_url"], job_title, questions)
 

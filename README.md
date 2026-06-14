@@ -2,14 +2,14 @@
 
 # SmartHireTime
 
-SmartHireTime is a simple web app that turns a job title into three thoughtful interview questions. The frontend is TypeScript, the backend is Flask, the question set is stored in PostgreSQL, and Gemini generates the structured JSON response.
+SmartHireTime is a simple web app that turns a job title into three thoughtful interview questions. The frontend is TypeScript, the backend is Flask, the question set is stored in PostgreSQL, and Mistral generates the structured JSON response.
 
 ## What The App Does
 
 1. The user enters a job title.
 2. The TypeScript frontend sends the role details to the Flask API.
 3. Flask builds a role-specific prompt.
-4. Flask calls the free Gemini API.
+4. Flask calls the Mistral API.
 5. Flask validates the JSON response and saves the question set in PostgreSQL.
 6. The frontend renders the interview questions.
 
@@ -19,7 +19,7 @@ SmartHireTime is a simple web app that turns a job title into three thoughtful i
 SmartHireTime/
 ├── backend/
 │   ├── app.py              # Flask entry point and HTTP routes
-│   ├── ai_api.py           # Gemini API request
+│   ├── ai_api.py           # Mistral API request
 │   ├── config.py           # Environment loading
 │   ├── database.py         # PostgreSQL setup and inserts
 │   └── question_builder.py # Prompt creation and response parsing
@@ -47,7 +47,7 @@ This is the backend entry point. It exposes the API route, serves health checks,
 
 Loads `.env` values:
 
-- `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
 - `DATABASE_URL`
 - `FRONTEND_ORIGIN`
 - `PORT`
@@ -58,11 +58,11 @@ Creates the PostgreSQL table if needed and saves each generated question set.
 
 `backend/question_builder.py`
 
-Builds the AI prompt and parses the Gemini JSON response into a clean list of questions.
+Builds the AI prompt and parses the Mistral JSON response into a clean list of questions.
 
 `backend/ai_api.py`
 
-Calls the Gemini `generateContent` endpoint and extracts the returned text payload.
+Calls the Mistral chat completions endpoint and extracts the returned text payload.
 
 `frontend/src/main.ts`
 
@@ -92,7 +92,7 @@ cp .env.example .env
 Update `.env`:
 
 ```text
-GEMINI_API_KEY=your_gemini_api_key_here
+MISTRAL_API_KEY=your_mistral_api_key_here
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smart_hire_time
 FRONTEND_ORIGIN=http://localhost:5173,https://smart-hire-time.vercel.app
 VITE_API_BASE_URL=http://127.0.0.1:3000
@@ -161,7 +161,7 @@ The Vite dev server proxies `/api` requests to Flask on port `3000`, so keep Fla
    - Build command: `pip install -r requirements.txt`
    - Start command: `gunicorn --chdir backend --bind 0.0.0.0:$PORT app:app`
 2. Set backend environment variables in Render:
-   - `GEMINI_API_KEY`
+   - `MISTRAL_API_KEY`
    - `DATABASE_URL` (Supabase PostgreSQL URL)
    - `FRONTEND_ORIGIN` (comma-separated list of allowed frontend origins, for example `https://your-app.vercel.app`)
 3. Confirm health check works:

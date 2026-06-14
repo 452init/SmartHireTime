@@ -12,7 +12,7 @@ services:
         value: 3.12.2
       - key: DATABASE_URL
         sync: false
-      - key: GEMINI_API_KEY
+      - key: MISTRAL_API_KEY
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false

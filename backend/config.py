@@ -6,7 +6,7 @@ def get_config(env_path):
 
     return {
         "database_url": os.getenv("DATABASE_URL", ""),
-        "gemini_api_key": os.getenv("GEMINI_API_KEY", ""),
+        "mistral_api_key": os.getenv("MISTRAL_API_KEY", ""),
         "frontend_origins": get_csv_env("FRONTEND_ORIGIN"),
         "port": int(os.getenv("PORT", "3000")),
     }
